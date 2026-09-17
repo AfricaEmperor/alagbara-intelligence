@@ -19,9 +19,7 @@ PULSE — one-sentence normalized restatement of the economic-intent request.
 Return ONLY raw JSON matching exactly:
 {"pulse":"...","facts":["..."],"unknowns":["..."],"assumptions":["..."],"analysis":"...","recommendation":"...","risks":["..."],"confidence":"low|medium|high"}`;
 
-export async function OPTIONS() {
-  return new Response(null, { status: 204, headers: corsHeaders() });
-}
+export async function OPTIONS() { return new Response(null, { status: 204, headers: corsHeaders() }); }
 
 export async function POST(request) {
   const headers = corsHeaders();
@@ -32,16 +30,11 @@ export async function POST(request) {
     const decision = typeof body.decision === 'string' ? body.decision.trim() : '';
     const useful = typeof body.useful === 'string' ? body.useful.trim() : '';
 
-    if (!question || question.length > 4000) {
-      return json({ error: 'question is required and must be 1–4000 characters' }, 400, headers);
-    }
+    if (!question || question.length > 4000) return json({ error: 'question is required and must be 1–4000 characters' }, 400, headers);
 
-    const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_ANON_KEY;
-    const anthropicKey = process.env.ANTHROPIC_API_KEY;
-    if (!supabaseUrl || !supabaseKey || !anthropicKey) {
-      return json({ error: 'Intelligence backend environment is incomplete' }, 500, headers);
-    }
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+    if (!supabaseUrl || !supabaseKey) return json({ error: 'Supabase environment is incomplete' }, 500, headers);
 
     const supabase = createClient(supabaseUrl, supabaseKey);
     const { data: intake, error: intakeError } = await supabase.rpc('create_big_intelligence_request', {
@@ -51,25 +44,27 @@ export async function POST(request) {
       p_useful: useful || null,
       p_source: 'big-consulting-ui'
     });
-
     if (intakeError || !intake?.id || !intake?.internal_nonce) {
       return json({ error: 'Could not persist intelligence request', detail: intakeError?.message || 'No request id returned' }, 502, headers);
     }
 
     const requestId = intake.id;
+    const anthropicKey = process.env.ANTHROPIC_API_KEY;
+    if (!anthropicKey) {
+      return json({ request_id: requestId, status: 'received', next: 'intelligence_processing_pending' }, 202, headers);
+    }
+
     const { data: recent, error: recentError } = await supabase
       .from('big_intelligence_requests')
       .select('question, market, decision, useful, pulse, analysis, recommendation, outcome, created_at')
       .order('created_at', { ascending: false })
       .limit(5);
-
     if (recentError) throw new Error('Could not read intelligence memory: ' + recentError.message);
 
     const raw = await callClaude(anthropicKey, JSON.stringify({
       request: { id: requestId, question, market: market || null, decision: decision || null, useful: useful || null },
       recent_intelligence_memory: recent || []
     }));
-
     const parsed = parseAnalysis(raw);
     if (!parsed.ok) throw new Error(parsed.reason);
     const a = parsed.value;
@@ -88,10 +83,7 @@ export async function POST(request) {
       p_confidence: a.confidence,
       p_outcome: null
     });
-
-    if (completionError || completed !== true) {
-      throw new Error('Reasoning succeeded but persistence completion failed: ' + (completionError?.message || 'request could not be updated'));
-    }
+    if (completionError || completed !== true) throw new Error('Reasoning succeeded but persistence completion failed: ' + (completionError?.message || 'request could not be updated'));
 
     return json({ request_id: requestId, status: 'response_ready', intelligence: a }, 200, headers);
   } catch (error) {
@@ -128,14 +120,6 @@ function parseAnalysis(text) {
 }
 
 function corsHeaders() {
-  return {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Content-Type': 'application/json'
-  };
+  return { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Content-Type': 'application/json' };
 }
-
-function json(body, status, headers) {
-  return new Response(JSON.stringify(body), { status, headers });
-}
+function json(body, status, headers) { return new Response(JSON.stringify(body), { status, headers }); }
