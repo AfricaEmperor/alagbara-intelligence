@@ -49,19 +49,15 @@ export async function POST(request) {
     }
 
     const requestId = intake.id;
-    const anthropicKey = process.env.ANTHROPIC_API_KEY;
-    if (!anthropicKey) {
+    const openaiKey = process.env.OPENAI_API_KEY;
+    if (!openaiKey) {
       return json({ request_id: requestId, status: 'received', next: 'intelligence_processing_pending' }, 202, headers);
     }
 
-    const { data: recent, error: recentError } = await supabase
-      .from('big_intelligence_requests')
-      .select('question, market, decision, useful, pulse, analysis, recommendation, outcome, created_at')
-      .order('created_at', { ascending: false })
-      .limit(5);
+    const { data: recent, error: recentError } = await supabase.rpc('get_recent_big_intelligence_memory', { p_limit: 5 });
     if (recentError) throw new Error('Could not read intelligence memory: ' + recentError.message);
 
-    const raw = await callClaude(anthropicKey, JSON.stringify({
+    const raw = await callOpenAI(openaiKey, JSON.stringify({
       request: { id: requestId, question, market: market || null, decision: decision || null, useful: useful || null },
       recent_intelligence_memory: recent || []
     }));
@@ -92,19 +88,27 @@ export async function POST(request) {
   }
 }
 
-async function callClaude(apiKey, userContent) {
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
+async function callOpenAI(apiKey, userContent) {
+  const response = await fetch('https://api.openai.com/v1/responses', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1400, system: ANALYSIS_SYSTEM, messages: [{ role: 'user', content: userContent }] })
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model: 'gpt-5.6-sol',
+      input: [
+        { role: 'system', content: [{ type: 'input_text', text: ANALYSIS_SYSTEM }] },
+        { role: 'user', content: [{ type: 'input_text', text: userContent }] }
+      ],
+      max_output_tokens: 1400
+    })
   });
   if (!response.ok) {
     let detail = 'status ' + response.status;
     try { const data = await response.json(); if (data?.error?.message) detail = data.error.message; } catch (_) {}
-    throw new Error('Anthropic request failed — ' + detail);
+    throw new Error('OpenAI request failed — ' + detail);
   }
   const data = await response.json();
-  return (data.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('\n');
+  if (typeof data.output_text === 'string') return data.output_text;
+  return (data.output || []).flatMap((item) => item.content || []).filter((part) => part.type === 'output_text').map((part) => part.text).join('\n');
 }
 
 function parseAnalysis(text) {
