@@ -23,6 +23,9 @@ export async function OPTIONS() { return new Response(null, { status: 204, heade
 
 export async function POST(request) {
   const headers = corsHeaders();
+  let requestId = null;
+  let intake = null;
+
   try {
     const body = await request.json();
     const question = typeof body.question === 'string' ? body.question.trim() : '';
@@ -37,18 +40,21 @@ export async function POST(request) {
     if (!supabaseUrl || !supabaseKey) return json({ error: 'Supabase environment is incomplete' }, 500, headers);
 
     const supabase = createClient(supabaseUrl, supabaseKey);
-    const { data: intake, error: intakeError } = await supabase.rpc('create_big_intelligence_request', {
+    const intakeResult = await supabase.rpc('create_big_intelligence_request', {
       p_question: question,
       p_market: market || null,
       p_decision: decision || null,
       p_useful: useful || null,
       p_source: 'big-consulting-ui'
     });
-    if (intakeError || !intake?.id || !intake?.internal_nonce) {
-      return json({ error: 'Could not persist intelligence request', detail: intakeError?.message || 'No request id returned' }, 502, headers);
+    intake = intakeResult.data;
+    if (intakeResult.error || !intake?.id || !intake?.internal_nonce) {
+      return json({ error: 'Could not persist intelligence request', detail: intakeResult.error?.message || 'No request id returned' }, 502, headers);
     }
 
-    const requestId = intake.id;
+    requestId = intake.id;
+    await setStatus(supabase, requestId, intake.internal_nonce, 'scouting');
+
     const openaiKey = process.env.OPENAI_API_KEY;
     if (!openaiKey) {
       return json({ request_id: requestId, status: 'received', next: 'intelligence_processing_pending' }, 202, headers);
@@ -57,10 +63,14 @@ export async function POST(request) {
     const { data: recent, error: recentError } = await supabase.rpc('get_recent_big_intelligence_memory', { p_limit: 5 });
     if (recentError) throw new Error('Could not read intelligence memory: ' + recentError.message);
 
+    await setStatus(supabase, requestId, intake.internal_nonce, 'pulsed');
+    const model = process.env.OPENAI_MODEL || 'gpt-5.6-sol';
+
+    await setStatus(supabase, requestId, intake.internal_nonce, 'analyzing');
     const raw = await callOpenAI(openaiKey, JSON.stringify({
       request: { id: requestId, question, market: market || null, decision: decision || null, useful: useful || null },
       recent_intelligence_memory: recent || []
-    }));
+    }), model);
     const parsed = parseAnalysis(raw);
     if (!parsed.ok) throw new Error(parsed.reason);
     const a = parsed.value;
@@ -84,16 +94,25 @@ export async function POST(request) {
     return json({ request_id: requestId, status: 'response_ready', intelligence: a }, 200, headers);
   } catch (error) {
     console.error('[intelligence-request]', error);
-    return json({ error: error.message || 'Intelligence processing failed after request persistence' }, 502, headers);
+    return json({ error: error.message || 'Intelligence processing failed after request persistence', request_id: requestId }, 502, headers);
   }
 }
 
-async function callOpenAI(apiKey, userContent) {
+async function setStatus(supabase, id, nonce, status) {
+  const { error } = await supabase.rpc('update_big_intelligence_request_status', {
+    p_id: id,
+    p_nonce: nonce,
+    p_status: status
+  });
+  if (error) throw new Error('Could not advance intelligence status to ' + status + ': ' + error.message);
+}
+
+async function callOpenAI(apiKey, userContent, model) {
   const response = await fetch('https://api.openai.com/v1/responses', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
-      model: 'gpt-5.6-sol',
+      model,
       input: [
         { role: 'system', content: [{ type: 'input_text', text: ANALYSIS_SYSTEM }] },
         { role: 'user', content: [{ type: 'input_text', text: userContent }] }
