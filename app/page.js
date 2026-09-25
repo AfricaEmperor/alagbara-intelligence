@@ -1,11 +1,15 @@
 'use client';
-import { useMemo, useState } from 'react';
-import { saltState } from '../data/salt_reconstruction_v0_1';
+import { useEffect, useMemo, useState } from 'react';
 const tabs=['OVERVIEW','EVIDENCE','EVENTS','GRAPH','LEDGERS','PULSE','NEXT SCOUT'];
+
 export default function Page(){
  const [activeTab,setActiveTab]=useState('OVERVIEW'); const [selected,setSelected]=useState(null);
- const acceptedFlows=useMemo(()=>saltState.flows.filter(f=>f.status==='ACCEPTED'),[]);
- const highPriority=saltState.nextScout.filter(x=>x.priority==='HIGH').length;
+ const [saltState,setSaltState]=useState(null); const [error,setError]=useState('');
+ useEffect(()=>{fetch('/api/state',{cache:'no-store'}).then(r=>{if(!r.ok)throw new Error('state endpoint failed');return r.json()}).then(setSaltState).catch(e=>setError(e.message))},[]);
+ const acceptedFlows=useMemo(()=>saltState?.flows?.filter(f=>f.status==='ACCEPTED')||[],[saltState]);
+ const highPriority=saltState?.nextScout?.filter(x=>x.priority==='HIGH').length||0;
+ if(error) return <main className="console"><div className="errorState"><b>STATE ERROR</b><p>{error}</p><small>/api/state could not be loaded.</small></div></main>;
+ if(!saltState) return <main className="console"><div className="loadingState"><span></span><b>LOADING RECONSTRUCTION STATE</b><small>Evidence → Graph → Pulse</small></div></main>;
  return <main className="console">
   <header className="topbar"><div className="brandBlock"><div className="brandMark">A</div><div><div className="brand">ALAGBARA</div><div className="title">{saltState.title} <span>— {saltState.version}</span></div><div className="subtitle">REAL EVIDENCE → GRAPH → PULSE → NEXT SCOUT</div></div></div><div className="topMeta"><span>{saltState.asOf} · WAT</span><b className="statusPill">● KERNEL TESTED / PASS</b></div></header>
   <nav className="tabs">{tabs.map(tab=><button key={tab} className={activeTab===tab?'tab active':'tab'} onClick={()=>setActiveTab(tab)}>{tab}</button>)}</nav>
@@ -19,16 +23,16 @@ export default function Page(){
      <div className="transactionStrip">{saltState.events.map(e=><button key={e.id} className="transactionCard" onClick={()=>setSelected({kind:'event',title:e.id,data:e})}><span className="eventBadge">TX</span><div><strong>{e.exporter} → {e.importer}</strong><b>{e.quantity}</b><small>{e.date} · {e.source} · {e.packaging}</small></div><em>UNKNOWN</em></button>)}</div>
      <div className="graphDeck"><div className="deckLabel">CANONICAL GRAPH <small>SOURCE-VALIDATED PROPOSITIONS</small></div><div className="graphNodes">{acceptedFlows.map(f=><button key={f.id} className="node" onClick={()=>setSelected({kind:'graph',title:f.source+' → BENIN',data:f})}><i></i><span>{f.source}</span><b>{f.quantity}</b><small>WITS / 2024</small></button>)}<button className="node beninNode" onClick={()=>setSelected({kind:'graph',title:'BENIN',data:{acceptedEdges:acceptedFlows.length}})}><i></i><span>BENIN</span><b>{acceptedFlows.length} edges</b><small>accepted</small></button></div></div>
     </div>
-    <div className="pulseBar"><div className="pulseHeader"><span>SALT PULSE v0.1</span><small>CURRENT STATE · AS OF {saltState.asOf}</small></div><div className="metrics"><Metric value={acceptedFlows.length} label="Accepted trade edges"/><Metric value={saltState.events.length} label="Transaction events observed"/><Metric value={saltState.unknowns.length+'+'} label="Key unknowns"/><Metric value={saltState.contradictions.length} label="Contradiction" danger/></div></div>
+    <div className="pulseBar"><div className="pulseHeader"><span>SALT PULSE v0.1</span><small>CURRENT STATE · AS OF {saltState.asOf}</small></div><div className="metrics"><Metric value={acceptedFlows.length} label="Accepted trade edges"/><Metric value={saltState.events.length} label="Transaction events observed"/><Metric value={saltState.unknowns.length+'+'} label="Key unknowns"/><Metric value={saltState.contradictions.length} label="Contradiction"/></div></div>
     <div className="nextScout"><div className="sectionHeader"><div><span className="eyebrow">PRIORITISED EVIDENCE ACQUISITION</span><h2>NEXT SCOUT</h2></div><b>{highPriority} HIGH PRIORITY</b></div><div className="scoutGrid">{saltState.nextScout.map(item=><button key={item.id} className="scoutCard" onClick={()=>setSelected({kind:'scout',title:item.id,data:item})}><div className="scoutNo">{item.id.replace('SCOUT-','')}</div><div><strong>{item.title}</strong><p>{item.question}</p><small>TARGET · {item.target}</small></div><span className={'priority '+item.priority.toLowerCase()}>{item.priority}</span></button>)}</div></div>
    </section>
-   <aside className="rail rightRail"><SectionTitle eyebrow="EPISTEMIC STATE" title="Ledgers"/><Ledger title="UNKNOWN LEDGER" tone="unknown" items={saltState.unknowns} onSelect={setSelected}/><Ledger title="CONTRADICTION LEDGER" tone="danger" items={saltState.contradictions} onSelect={setSelected}/><div className="integrityCard"><span>INTEGRITY RULE</span><strong>UNKNOWN ≠ FALSE</strong><p>Contradictions remain open until new evidence resolves them.</p></div></aside>
+   <aside className="rail rightRail"><SectionTitle eyebrow="EPistemic STATE" title="Ledgers"/><Ledger title="UNKNOWN LEDGER" tone="unknown" items={saltState.unknowns} onSelect={setSelected}/><Ledger title="CONTRADICTION LEDGER" tone="danger" items={saltState.contradictions} onSelect={setSelected}/><div className="integrityCard"><span>INTEGRITY RULE</span><strong>UNKNOWN ≠ FALSE</strong><p>Contradictions remain open until new evidence resolves them.</p></div></aside>
   </section>
   {selected&&<DetailDrawer selected={selected} onClose={()=>setSelected(null)}/>}
  </main>;
 }
 function SectionTitle({eyebrow,title}){return <div className="sectionTitle"><span>{eyebrow}</span><h2>{title}</h2></div>}
-function Metric({value,label,danger}){return <div className={danger?'metric dangerMetric':'metric'}><b>{value}</b><span>{label}</span></div>}
+function Metric({value,label}){return <div className="metric"><b>{value}</b><span>{label}</span></div>}
 function Ledger({title,tone,items,onSelect}){return <section className={'ledger '+tone}><div className="ledgerHead"><span>{title}</span><b>{items.length}</b></div>{items.map(item=><button key={item.id} onClick={()=>onSelect({kind:tone,title:item.id,data:item})}><span className="q">?</span><div><strong>{item.field||item.subject}</strong><small>{item.reason||item.attribute}</small></div></button>)}</section>}
 function DetailDrawer({selected,onClose}){const d=selected.data||{};return <div className="drawerBackdrop" onClick={onClose}><aside className="drawer" onClick={e=>e.stopPropagation()}><button className="close" onClick={onClose}>×</button><span className="eyebrow">{selected.kind.toUpperCase()}</span><h2>{selected.title}</h2><div className="drawerBody">{Object.entries(d).map(([k,v])=><div className="detailRow" key={k}><span>{humanize(k)}</span><strong>{typeof v==='object'?JSON.stringify(v):String(v)}</strong></div>)}</div>{selected.kind==='event'&&<div className="trace"><b>EPISTEMIC TRACE</b><span>EvidencePassport</span><i>↓</i><span>TradeEvent</span><i>↓</i><span>GraphProposal</span><i>↓</i><span>Validation</span></div>}</aside></div>}
 function humanize(k){return k.replace(/([A-Z])/g,' $1').replace(/_/g,' ').replace(/^./,x=>x.toUpperCase())}
