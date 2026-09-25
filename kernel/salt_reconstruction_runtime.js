@@ -97,7 +97,7 @@ export function runSaltReconstruction(records, asOf = new Date().toISOString()) 
   const evidence = records.map(makeEvidence);
   const evidenceById = new Map(evidence.map(e => [e.evidence_id, e]));
   const tradeEvents = evidence.map(makeEvent);
-  const graphProposals = tradeEvents.map(makeProposal);
+  const graphProposals = tradeEvents.filter(event => event.partner !== 'World').map(makeProposal);
   const validation = validate(graphProposals, evidenceById);
   const unknowns = validation.unknown.map((x, i) => ({
     unknown_id: 'UNK-' + String(i + 1).padStart(4, '0'),
