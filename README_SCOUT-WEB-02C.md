@@ -17,3 +17,15 @@ Acceptance:
 - observed vs derived preserved
 - contradictions not silently resolved
 - SaltPulse generated automatically
+
+
+## Live-source gate — 2026-09-25
+
+The direct UN Comtrade preview request was attempted from both the web retrieval runtime and a network-capable container path. Both failed before HTTP response retrieval because `comtradeapi.un.org` was not reachable/resolvable from the available execution environments.
+
+Canonical-source rule:
+- DIRECT_COMTRADE = canonical EvidencePassport source when raw API JSON is successfully acquired.
+- WITS/UN Comtrade snapshot = fallback/reference only; it must not be silently promoted to canonical.
+- SCOUT-WEB-02D is gated until the direct raw JSON is acquired and compared field-by-field against the WITS snapshot.
+
+The documented public preview endpoint is `/public/v1/preview/C/A/HS`, with a 500-record preview limit. See the UN Comtrade API documentation.
