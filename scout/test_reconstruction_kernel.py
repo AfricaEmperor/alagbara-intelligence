@@ -16,7 +16,7 @@ def run():
         {"id":"B","exporter":"A","importer":None,"quantity_t":100,"price_usd":18585},
         {"id":"C","exporter":None,"importer":"C","quantity_t":50,"price_usd":9000},
         {"id":"D","exporter":"A","importer":"B","quantity_t":100,"price_usd":18585},
-        {"id":"E","exporter":"A","importer":"B","quantity_t":120,"price_usd":21000},
+        {"id":"E","exporter":"A","importer":"B","quantity_t":120,"price_usd":18585},
     ]
     passports={}
     for r in raw:
