@@ -1,0 +1,132 @@
+{
+  "pulse_id": "SALT_PULSE_v0.1",
+  "subject": "BENIN_SALT_IMPORTS_HS250100",
+  "as_of": "2026-09-25",
+  "scope": {
+    "reporter": "BENIN",
+    "period": 2024,
+    "hs_code": "250100",
+    "flow": "IMPORT"
+  },
+  "source_status": {
+    "direct_live_comtrade_api": "BLOCKED_IN_CURRENT_EXECUTION_ENV",
+    "reproducible_basis": "CURRENT_WITS_PAGE_BACKED_BY_UN_COMTRADE",
+    "page_refreshed": "2026-09-01"
+  },
+  "facts": {
+    "reported_world_import_kg": 57979100,
+    "reported_world_import_tonnes": 57979.1,
+    "reported_world_trade_value_usd": 5459730,
+    "partner_rows_observed": 21,
+    "commodity_description": "Salt and pure sodium chloride; sea water",
+    "classification": "HS 1988/92 (H0)"
+  },
+  "flows": [
+    {
+      "partner": "Senegal",
+      "kg": 19992400,
+      "tonnes": 19992.4,
+      "trade_value_usd": 2605120,
+      "share_pct": 34.48,
+      "unit_value_usd_per_kg": 0.1303
+    },
+    {
+      "partner": "Egypt, Arab Rep.",
+      "kg": 14909100,
+      "tonnes": 14909.1,
+      "trade_value_usd": 1159740,
+      "share_pct": 25.71,
+      "unit_value_usd_per_kg": 0.0778
+    },
+    {
+      "partner": "India",
+      "kg": 9404160,
+      "tonnes": 9404.16,
+      "trade_value_usd": 935230,
+      "share_pct": 16.22,
+      "unit_value_usd_per_kg": 0.0994
+    },
+    {
+      "partner": "Ghana",
+      "kg": 5667070,
+      "tonnes": 5667.07,
+      "trade_value_usd": 212170,
+      "share_pct": 9.77,
+      "unit_value_usd_per_kg": 0.0374
+    },
+    {
+      "partner": "Nigeria",
+      "kg": 4031470,
+      "tonnes": 4031.47,
+      "trade_value_usd": 196550,
+      "share_pct": 6.95,
+      "unit_value_usd_per_kg": 0.0488
+    },
+    {
+      "partner": "Tunisia",
+      "kg": 1316000,
+      "tonnes": 1316,
+      "trade_value_usd": 175610,
+      "share_pct": 2.27,
+      "unit_value_usd_per_kg": 0.1334
+    },
+    {
+      "partner": "France",
+      "kg": 943331,
+      "tonnes": 943.331,
+      "trade_value_usd": 79870,
+      "share_pct": 1.63,
+      "unit_value_usd_per_kg": 0.0847
+    },
+    {
+      "partner": "Algeria",
+      "kg": 729000,
+      "tonnes": 729,
+      "trade_value_usd": 43990,
+      "share_pct": 1.26,
+      "unit_value_usd_per_kg": 0.0603
+    },
+    {
+      "partner": "China",
+      "kg": 450907,
+      "tonnes": 450.907,
+      "trade_value_usd": 23890,
+      "share_pct": 0.78,
+      "unit_value_usd_per_kg": 0.053
+    },
+    {
+      "partner": "Togo",
+      "kg": 520765,
+      "tonnes": 520.765,
+      "trade_value_usd": 21770,
+      "share_pct": 0.9,
+      "unit_value_usd_per_kg": 0.0418
+    }
+  ],
+  "derived": [
+    "Top five reported partner flows account for 93.13% of reported import tonnage.",
+    "Senegal, Egypt and India together account for 76.41% of reported import tonnage.",
+    "Unit values are trade value divided by reported net quantity; they are not retail prices or HIMMA landed costs."
+  ],
+  "contradictions": [],
+  "unknowns": [
+    "Importer/exporter identities are not present in this aggregate partner table.",
+    "Packaging, SKU, brand, grade and iodization status are not resolved.",
+    "Corridor and border entry point are not resolved.",
+    "The aggregate does not establish HIMMA-addressable market share.",
+    "The direct live API response payload was not retrievable in this execution environment."
+  ],
+  "next_evidence": [
+    "Re-run direct UN Comtrade preview from a network-enabled runtime and archive the raw JSON response.",
+    "Compare Benin-reported bilateral flows with partner-reported mirror exports for Senegal, Egypt, India, Ghana and Nigeria.",
+    "Acquire transaction-level records for importer/exporter, packaging and shipment-level route resolution."
+  ],
+  "confidence": {
+    "aggregate_flow": "HIGH",
+    "partner_ranking": "HIGH",
+    "actor_resolution": "UNKNOWN",
+    "packaging_resolution": "UNKNOWN",
+    "corridor_resolution": "UNKNOWN",
+    "commercial_addressability": "UNKNOWN"
+  }
+}
