@@ -1,4 +1,4 @@
-import { acquireComtrade, comtradeToKernelRecords } from '../../../../scout/comtrade_runtime';
+import { acquireComtrade, comtradeToKernelRecords } from '../../../scout/comtrade_runtime';
 import { runSaltReconstruction } from '../../../kernel/salt_reconstruction_runtime';
 
 export const dynamic = 'force-dynamic';
