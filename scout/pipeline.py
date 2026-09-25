@@ -19,8 +19,12 @@ def evidence_passports(raw):
           "retrieved_at":raw["acquired_at"],"raw_record":row,
           "observations":{"reporter":row.get("reporterDesc"),"partner":row.get("partnerDesc"),
             "period":row.get("refYear"),"flow":row.get("flowDesc"),"hs_code":row.get("cmdCode"),
-            "quantity":row.get("netWgt"),"quantity_unit":row.get("qtyUnitAbbr"),
-            "trade_value":row.get("primaryValue")},
+            "quantity":row.get("netWgt"),"quantity_unit":"kg",
+            "quantity_reported":row.get("qty"),"quantity_reported_unit":row.get("qtyUnitAbbr"),
+            "trade_value":row.get("primaryValue"),"trade_value_unit":"USD",
+            "cif_value":row.get("cifvalue"),"fob_value":row.get("fobvalue"),
+            "is_quantity_estimated":row.get("isNetWgtEstimated"),
+            "is_reported":row.get("isReported"),"is_aggregate":row.get("isAggregate")},
           "provenance":{"source_url":raw["source_url"],"query":raw["query"]},
           "epistemic_status":"OBSERVED","confidence":"HIGH"})
     return out
