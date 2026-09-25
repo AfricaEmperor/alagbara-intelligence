@@ -44,13 +44,15 @@ def trade_events(evidence):
     return out
 
 def graph_proposals(events):
+    # "World" is an aggregate total, not a bilateral actor edge.
     return [{
       "proposal_id":stable_id("GP",e["event_id"]),"subject":e["reporter"],
       "predicate":"IMPORTED_FROM","object":e["partner"],
       "validity":{"status":"PROPOSED"},"evidence_ids":e["evidence_ids"],
       "observed_at":str(e["period"]),"confidence":"HIGH",
       "attributes":{"hs_code":e["product"]["hs_code"],"quantity":e["quantity"],
-                    "trade_value":e["trade_value"]}} for e in events]
+                    "trade_value":e["trade_value"]}}
+      for e in events if e["partner"] != "World"]
 
 def run(raw_path):
     raw=json.loads(Path(raw_path).read_text(encoding="utf-8"))
