@@ -1,3 +1,4 @@
+import { buildAILEnvelope, validateAIL } from '../../../ail/runtime.js';
 import { createClient } from '@supabase/supabase-js';
 
 const SCOUT_SYSTEM = `You are SCOUT, the evidence-retrieval layer of ALAGBARA. Your job is to observe current external reality, not to analyze or recommend.
@@ -87,10 +88,18 @@ export async function POST(request) {
     const raw = await callANA(openaiKey, JSON.stringify({ request: { id: requestId, question, market: market || null, decision: decision || null, useful: useful || null }, evidence_ledger: evidence, scout_unknowns: scoutParsed.value.unknowns || [], recent_intelligence_memory: recent || [] }), model);
     const parsed = parseAnalysis(raw); if (!parsed.ok) throw new Error(parsed.reason); const a = parsed.value;
 
+    const ail = buildAILEnvelope({
+      request: { id: requestId, question, market: market || null, decision: decision || null },
+      scout: scoutParsed.value,
+      intelligence: a
+    });
+    const ailValidation = validateAIL(ail);
+    if (!ailValidation.ok) throw new Error('AIL validation failed / validation AIL échouée: ' + ailValidation.errors.join('; '));
+
     const { data: completed, error: completionError } = await supabase.rpc('complete_big_intelligence_request', { p_id: requestId, p_nonce: intake.internal_nonce, p_status: 'response_ready', p_pulse: a.pulse, p_facts: a.facts, p_unknowns: a.unknowns, p_assumptions: a.assumptions, p_analysis: a.analysis, p_recommendation: a.recommendation, p_risks: a.risks, p_confidence: a.confidence, p_outcome: null });
     if (completionError || completed !== true) throw new Error('Reasoning succeeded but persistence completion failed / le raisonnement a réussi mais la finalisation a échoué: ' + (completionError?.message || 'request could not be updated'));
 
-    return json({ request_id: requestId, status: 'response_ready', scout: { observed_at: scoutParsed.value.observed_at, evidence_count: evidence.length, sources: evidence.map(({ request_id: _id, ...item }) => item) }, intelligence: a }, 200, headers);
+    return json({ request_id: requestId, status: 'response_ready', scout: { observed_at: scoutParsed.value.observed_at, evidence_count: evidence.length, sources: evidence.map(({ request_id: _id, ...item }) => item) }, intelligence: a, ail }, 200, headers);
   } catch (error) {
     console.error('[intelligence-request]', error);
     return json({ error: error.message || 'Intelligence processing failed after request persistence / échec du traitement après enregistrement', request_id: requestId }, 502, headers);
