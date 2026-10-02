@@ -1,0 +1,10 @@
+# Copy to sources.yaml and configure only approved sources.
+sources:
+  - id: example-public-site
+    adapter: scrapling
+    enabled: false
+    base_url: https://example.org
+    max_requests_per_minute: 10
+    allowed_paths:
+      - /
+    notes: "Replace with a source whose terms and access permissions have been reviewed."
