@@ -52,3 +52,12 @@ The first runtime integration intentionally uses the existing API payload and do
 
 ## Important implementation constraint
 Current ANA facts do not yet carry claim-level evidence references. AIL v0.2 therefore records the evidence set used by the reasoning stage rather than pretending to have fine-grained claim provenance. Claim-level provenance is the next tightening step.
+## Surface syntax
+
+The first executable surface syntax is implemented in ail/parser.js and documented in ail/grammar.ebnf.
+
+A valid operational chain is:
+
+OBSERVE -> ASSERT -> DERIVE / UNKNOWN -> RELATE -> DECIDE -> AUTHORIZE -> EXECUTE
+
+The boundary is deliberate: intelligence can formulate a decision, but only explicit authorization can cross into execution.
