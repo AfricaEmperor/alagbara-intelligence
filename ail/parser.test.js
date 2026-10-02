@@ -5,8 +5,9 @@ import { parseAIL, validateAILProgram } from './parser.js';
 test('parses the core AIL statements', () => {
   const program = parseAIL([
     'OBSERVE market:ipo.status = "open" @ EV-001',
+    'ASSERT CL-001 market:ipo.status = "open" @ EV-001',
     'UNKNOWN market:ipo.subscription_volume',
-    'DERIVE CL-001 market:ipo.state = "active" FROM CL-001',
+    'DERIVE CL-002 market:ipo.state = "active" FROM CL-001',
     'RELATE ED-001 issuer:Dangote -[issued]-> security:Dangote-IPO @ EV-001',
     'DECIDE ACT-001 Investigate subscription volume',
     'AUTHORIZE ACT-001 BY principal:operator',
@@ -24,9 +25,16 @@ test('rejects an unproven relationship', () => {
   assert.match(JSON.stringify(validation.errors), /NO EDGE WITHOUT PROVENANCE/);
 });
 
-test('blocks execution before authorization', () => {
+test('blocks execution before decision and authorization', () => {
   const program = parseAIL('EXECUTE ACT-001 RESULT queued');
   const validation = validateAILProgram(program);
   assert.equal(validation.ok, false);
-  assert.match(JSON.stringify(validation.errors), /AUTHORIZE/);
+  assert.match(JSON.stringify(validation.errors), /DECIDE/);
+});
+
+test('blocks assertions without provenance', () => {
+  const program = parseAIL('ASSERT CL-001 market:ipo.status = "open" @ EV-999');
+  const validation = validateAILProgram(program);
+  assert.equal(validation.ok, false);
+  assert.match(JSON.stringify(validation.errors), /NO CLAIM WITHOUT PROVENANCE/);
 });
