@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alagbara.dev/ail/0.2.0/schema.json",
+  "title": "ALAGBARA Intelligence Language 0.2.0",
+  "type": "object",
+  "required": ["ail_version", "generated_at", "request", "evidence", "claims", "pulse", "reasoning", "action", "invariants"],
+  "properties": {
+    "ail_version": { "const": "0.2.0" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "request": { "type": ["object", "null"] },
+    "evidence": { "type": "array", "items": { "type": "object" } },
+    "claims": { "type": "array", "items": { "type": "object" } },
+    "pulse": { "type": ["object", "null"] },
+    "reasoning": { "type": "object" },
+    "action": { "type": ["object", "null"] },
+    "invariants": { "type": "object" }
+  }
+}
