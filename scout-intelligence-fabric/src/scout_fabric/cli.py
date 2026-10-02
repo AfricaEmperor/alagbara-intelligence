@@ -14,7 +14,7 @@ def main() -> int:
         record = json.dumps(acquire_public_page(args.url).to_dict(), ensure_ascii=False, indent=2)
         if args.output:
             with open(args.output, "w", encoding="utf-8") as stream:
-                stream.write(record + "\\n")
+                stream.write(record + "\n")
         else:
             print(record)
         return 0
