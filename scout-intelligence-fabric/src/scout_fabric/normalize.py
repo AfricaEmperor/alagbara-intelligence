@@ -4,11 +4,11 @@ import re
 from urllib.parse import urlsplit, urlunsplit
 
 def stable_observation_id(source_url: str, subject: str, claim: str) -> str:
-    material = "\\n".join((source_url.strip(), subject.strip(), claim.strip())).encode("utf-8")
+    material = "\n".join((source_url.strip(), subject.strip(), claim.strip())).encode("utf-8")
     return hashlib.sha256(material).hexdigest()
 
 def normalize_whitespace(value: str) -> str:
-    return re.sub(r"\\s+", " ", value).strip()
+    return re.sub(r"\s+", " ", value).strip()
 
 def canonicalize_url(url: str) -> str:
     parts = urlsplit(url.strip())
