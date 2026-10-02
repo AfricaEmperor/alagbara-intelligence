@@ -1,23 +1,13 @@
 # SCOUT Intelligence Fabric
 
-A modular, evidence-first acquisition layer for ALAGBARA. Source adapters collect observations; the fabric normalizes provenance and preserves uncertainty. It does **not** treat scraped content as verified truth.
+Evidence-first acquisition primitives for ALAGBARA. SCOUT captures source observations with provenance; it does not verify the truth of claims contained in a page.
 
-## Design principles
-- Adapter-based acquisition (Agent-Reach, Scrapling, browser automation are optional integrations).
-- Evidence provenance is mandatory: source URL, observed time, collection time, method, and raw-record reference.
-- Keep observed, derived, unverified, and unknown states distinct.
-- Preserve contradictions; never silently resolve them.
-- Respect source terms, access controls, rate limits, privacy, and applicable law.
-- No autonomous external actions in this scaffold.
+## SCOUT-001: First Evidence Acquisition
 
-## Layout
-- `src/scout_fabric/models.py`: canonical observation/evidence models.
-- `src/scout_fabric/normalize.py`: deterministic normalization helpers.
-- `config/sources.example.yaml`: adapter configuration template.
-- `schemas/observation.schema.json`: interchange contract.
-- `tests/`: contract tests.
+A minimal, opt-in adapter retrieves one explicitly supplied public HTML page using Python's standard library, extracts visible text and title, and emits a JSON observation. It has a 15-second timeout and a 1 MB response cap. It does not use browser automation, evade access controls, or crawl links.
 
 ## Quick start
+
 Requires Python 3.11+.
 
 ```bash
@@ -25,6 +15,15 @@ python -m venv .venv
 source .venv/bin/activate
 python -m pip install -e ".[dev]"
 pytest
+scout-acquire https://example.org --output evidence.json
 ```
 
-This is a scaffold, not a production crawler. Add a source adapter only after documenting authorization, collection limits, and expected provenance.
+Use only sources you are authorized to access. Respect terms, robots policies where applicable, rate limits, privacy, and law. Run one source at a time; no scheduler or autonomous actions are included.
+
+## Evidence contract
+
+Each record preserves source URL, collection method, adapter, timestamps, captured text, and a deterministic observation identifier. A captured page is an observation of what the page returned at collection time—not independent verification of its assertions. Keep observed, derived, unverified, and unknown states distinct; preserve contradictions rather than silently resolving them.
+
+## Next
+
+Add a reviewed source-specific adapter, raw-response retention with integrity hashes, and tests against controlled fixtures before enabling recurring collection.
