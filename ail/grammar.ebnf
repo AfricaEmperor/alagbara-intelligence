@@ -1,0 +1,36 @@
+# AIL 0.2 Surface Grammar
+
+```ebnf
+program     = { statement } ;
+statement   = observe | unknown | derive | relate | decide | authorize | execute ;
+observe     = "OBSERVE" , subject , "=" , value , "@" , evidence-id ;
+unknown     = "UNKNOWN" , subject ;
+derive      = "DERIVE" , claim-id , subject , "=" , value , "FROM" , claim-list ;
+relate      = "RELATE" , edge-id , subject , "-[" , predicate , "]->" , subject , "@" , evidence-id ;
+decide      = "DECIDE" , action-id , text ;
+authorize   = "AUTHORIZE" , action-id , "BY" , principal ;
+execute     = "EXECUTE" , action-id , "RESULT" , text ;
+
+subject     = token ;
+predicate   = token ;
+principal   = token ;
+claim-id    = "CL-" , digit , digit , digit ;
+evidence-id = "EV-" , digit , digit , digit ;
+edge-id     = "ED-" , digit , digit , digit ;
+action-id   = "ACT-" , digit , digit , digit ;
+value       = json-value | text ;
+claim-list  = claim-id , { "," , claim-id } ;
+text        = { character } ;
+token       = { letter | digit | ":" | "_" | "." | "-" } ;
+```
+
+Semantics:
+- OBSERVE creates provenance-bearing observed evidence.
+- UNKNOWN creates an explicit knowledge gap.
+- DERIVE creates a derived claim from prior claims.
+- RELATE creates a graph edge and requires evidence provenance.
+- DECIDE creates intent only; it does not authorize execution.
+- AUTHORIZE is the explicit permission boundary.
+- EXECUTE is valid only after authorization.
+
+The surface language is deliberately small. Rich JSON remains the canonical transport representation.
