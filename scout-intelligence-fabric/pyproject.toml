@@ -5,10 +5,13 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "scout-intelligence-fabric"
 version = "0.1.0"
-description = "Evidence-first multi-source acquisition layer for ALAGBARA"
+description = "Evidence-first acquisition layer for ALAGBARA"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = []
+
+[project.scripts]
+scout-acquire = "scout_fabric.cli:main"
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "ruff>=0.5"]
