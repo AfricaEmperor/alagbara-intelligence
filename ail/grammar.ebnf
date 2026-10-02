@@ -2,8 +2,9 @@
 
 ```ebnf
 program     = { statement } ;
-statement   = observe | unknown | derive | relate | decide | authorize | execute ;
+statement   = observe | assert | unknown | derive | relate | decide | authorize | execute ;
 observe     = "OBSERVE" , subject , "=" , value , "@" , evidence-id ;
+assert      = "ASSERT" , claim-id , subject , "=" , value , "@" , evidence-id ;
 unknown     = "UNKNOWN" , subject ;
 derive      = "DERIVE" , claim-id , subject , "=" , value , "FROM" , claim-list ;
 relate      = "RELATE" , edge-id , subject , "-[" , predicate , "]->" , subject , "@" , evidence-id ;
