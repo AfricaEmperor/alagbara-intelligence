@@ -17,6 +17,10 @@ export function parseAIL(source) {
         statements.push({ type: 'OBSERVE', subject: m[1], value: jsonValue(m[2]), evidence_id: m[3] });
         continue;
       }
+      if ((m = line.match(/^ASSERT\s+(CL-\d{3})\s+(\S+)\s*=\s*(.+?)\s+@\s+(EV-\d{3})$/))) {
+        statements.push({ type: 'ASSERT', id: m[1], subject: m[2], value: jsonValue(m[3]), evidence_id: m[4] });
+        continue;
+      }
       if ((m = line.match(/^UNKNOWN\s+(\S+)$/))) {
         statements.push({ type: 'UNKNOWN', subject: m[1] });
         continue;
@@ -58,20 +62,33 @@ export function validateAILProgram(program) {
 
   for (const stmt of program.statements || []) {
     if (stmt.type === 'OBSERVE') evidenceIds.add(stmt.evidence_id);
-    if (stmt.type === 'DERIVE') claimIds.add(stmt.id);
   }
 
   for (const stmt of program.statements || []) {
+    if (stmt.type === 'ASSERT') {
+      if (!evidenceIds.has(stmt.evidence_id)) errors.push({ message: 'ASSERT violates NO CLAIM WITHOUT PROVENANCE: ' + stmt.evidence_id });
+      if (claimIds.has(stmt.id)) errors.push({ message: 'Duplicate claim id ' + stmt.id });
+      claimIds.add(stmt.id);
+    }
     if (stmt.type === 'DERIVE') {
-      for (const source of stmt.from) if (!claimIds.has(source) && source !== 'CL-001') errors.push({ message: 'DERIVE references unknown claim ' + source });
+      for (const source of stmt.from) if (!claimIds.has(source)) errors.push({ message: 'DERIVE references unknown or later claim ' + source });
+      if (claimIds.has(stmt.id)) errors.push({ message: 'Duplicate claim id ' + stmt.id });
+      claimIds.add(stmt.id);
     }
     if (stmt.type === 'RELATE' && !evidenceIds.has(stmt.evidence_id)) errors.push({ message: 'RELATE violates NO EDGE WITHOUT PROVENANCE: ' + stmt.evidence_id });
+    if (stmt.type === 'DECIDE') {
+      if (actionStates.has(stmt.id)) errors.push({ message: 'Duplicate action id ' + stmt.id });
+      actionStates.set(stmt.id, { proposed: true, authorized: false, executed: false, intent: stmt.intent });
+    }
     if (stmt.type === 'AUTHORIZE') {
-      actionStates.set(stmt.action_id, { authorized: true, principal: stmt.principal });
+      if (!actionStates.has(stmt.action_id)) errors.push({ message: 'AUTHORIZE requires prior DECIDE for ' + stmt.action_id });
+      actionStates.set(stmt.action_id, { ...(actionStates.get(stmt.action_id) || {}), authorized: true, principal: stmt.principal });
     }
     if (stmt.type === 'EXECUTE') {
-      if (!actionStates.get(stmt.action_id)?.authorized) errors.push({ message: 'EXECUTE requires prior AUTHORIZE for ' + stmt.action_id });
-      actionStates.set(stmt.action_id, { ...(actionStates.get(stmt.action_id) || {}), executed: true, result: stmt.result });
+      const state = actionStates.get(stmt.action_id);
+      if (!state?.proposed) errors.push({ message: 'EXECUTE requires prior DECIDE for ' + stmt.action_id });
+      if (!state?.authorized) errors.push({ message: 'EXECUTE requires prior AUTHORIZE for ' + stmt.action_id });
+      actionStates.set(stmt.action_id, { ...(state || {}), executed: true, result: stmt.result });
     }
   }
 
