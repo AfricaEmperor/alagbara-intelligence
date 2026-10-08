@@ -6,9 +6,9 @@ function json(body,status=200){return new Response(JSON.stringify(body),{status,
 export async function OPTIONS(){return new Response(null,{status:204,headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'Content-Type','Access-Control-Allow-Methods':'POST,OPTIONS'}});}
 export async function POST(request){
  try{
-  const body=await request.json(); const id=body?.request_id; const transition=body?.transition;
-  if(!id) return json({error:'request_id is required'},400);
-  const db=client(); const {data:row,error}=await db.from('big_intelligence_requests').select('*').eq('id',id).single();
+  const body=await request.json(); const id=body?.request_id; const transition=body?.transition; const token=body?.empire_ops_token;
+  if(!id||!token) return json({error:'request_id and empire_ops_token are required'},400);
+  const db=client(); const {data:row,error}=await db.rpc('read_big_intelligence_empire_ops',{p_id:id,p_token:token});
   if(error||!row) return json({error:'case not found',detail:error?.message},404);
   let loop;
   if(row.empire_ops_events?.length) loop=resumeLoop({loop_id:row.empire_ops_loop_id,version:'0.1.0',state:row.empire_ops_state||{},events:row.empire_ops_events});
@@ -21,8 +21,8 @@ export async function POST(request){
   loop.state.lifecycle=loop.status;
   const audit=verifyAuditTrail(loop);
   if(!audit.ok) return json({error:'audit verification failed',detail:audit.reason},500);
-  const {error:updateError}=await db.from('big_intelligence_requests').update({empire_ops_status:loop.status,empire_ops_state:loop.state,empire_ops_events:loop.events,updated_at:new Date().toISOString()}).eq('id',id);
-  if(updateError) return json({error:'could not persist EmpireOps transition',detail:updateError.message},502);
+  const {data:updated,error:updateError}=await db.rpc('write_big_intelligence_empire_ops',{p_id:id,p_token:token,p_loop_id:loop.loop_id,p_status:loop.status,p_state:loop.state,p_events:loop.events});
+  if(updateError||updated!==true) return json({error:'could not persist EmpireOps transition',detail:updateError?.message||'not authorized'},502);
   return json({request_id:id,transition,status:loop.status,loop_id:loop.loop_id,audit});
  }catch(error){return json({error:error.message||'EmpireOps transition failed'},409);}
 }
