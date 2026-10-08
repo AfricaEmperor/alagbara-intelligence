@@ -1,4 +1,5 @@
 import { buildAILEnvelope, validateAIL } from '../../../ail/runtime.js';
+import { createLoop, createPulse, mapEffect } from '../../../empireOpsLoop.js';
 import { createClient } from '@supabase/supabase-js';
 
 const SCOUT_SYSTEM = `You are SCOUT, the evidence-retrieval layer of ALAGBARA. Your job is to observe current external reality, not to analyze or recommend.
@@ -98,8 +99,14 @@ export async function POST(request) {
 
     const { data: completed, error: completionError } = await supabase.rpc('complete_big_intelligence_request', { p_id: requestId, p_nonce: intake.internal_nonce, p_status: 'response_ready', p_pulse: a.pulse, p_facts: a.facts, p_unknowns: a.unknowns, p_assumptions: a.assumptions, p_analysis: a.analysis, p_recommendation: a.recommendation, p_risks: a.risks, p_confidence: a.confidence, p_outcome: null });
     if (completionError || completed !== true) throw new Error('Reasoning succeeded but persistence completion failed / le raisonnement a réussi mais la finalisation a échoué: ' + (completionError?.message || 'request could not be updated'));
+    const loop = createLoop({ signal: question, source: 'ALAGBARA_INTELLIGENCE_RUNTIME', actor: 'SCOUT' });
+    createPulse(loop, { observed: a.pulse, facts: a.facts, unknowns: a.unknowns, assumptions: a.assumptions, evidence: evidence.map(item => item.source_url) });
+    mapEffect(loop, { effects: [a.recommendation], risks: a.risks, opportunities: [a.recommendation] });
+    loop.state.lifecycle = loop.status;
+    const { error: loopError } = await supabase.from('big_intelligence_requests').update({ empire_ops_loop_id: loop.loop_id, empire_ops_status: loop.status, empire_ops_state: loop.state, empire_ops_events: loop.events, updated_at: new Date().toISOString() }).eq('id', requestId);
+    if (loopError) throw new Error('EmpireOps initialization failed / initialisation EmpireOps échouée: ' + loopError.message);
 
-    return json({ request_id: requestId, status: 'response_ready', scout: { observed_at: scoutParsed.value.observed_at, evidence_count: evidence.length, sources: evidence.map(({ request_id: _id, ...item }) => item) }, intelligence: a, ail }, 200, headers);
+    return json({ request_id: requestId, status: 'response_ready', empire_ops: { loop_id: loop.loop_id, status: loop.status, events: loop.events.length }, scout: { observed_at: scoutParsed.value.observed_at, evidence_count: evidence.length, sources: evidence.map(({ request_id: _id, ...item }) => item) }, intelligence: a, ail }, 200, headers);
   } catch (error) {
     console.error('[intelligence-request]', error);
     return json({ error: error.message || 'Intelligence processing failed after request persistence / échec du traitement après enregistrement', request_id: requestId }, 502, headers);
