@@ -103,10 +103,10 @@ export async function POST(request) {
     createPulse(loop, { observed: a.pulse, facts: a.facts, unknowns: a.unknowns, assumptions: a.assumptions, evidence: evidence.map(item => item.source_url) });
     mapEffect(loop, { effects: [a.recommendation], risks: a.risks, opportunities: [a.recommendation] });
     loop.state.lifecycle = loop.status;
-    const { error: loopError } = await supabase.from('big_intelligence_requests').update({ empire_ops_loop_id: loop.loop_id, empire_ops_status: loop.status, empire_ops_state: loop.state, empire_ops_events: loop.events, updated_at: new Date().toISOString() }).eq('id', requestId);
-    if (loopError) throw new Error('EmpireOps initialization failed / initialisation EmpireOps échouée: ' + loopError.message);
+    const { data: loopSaved, error: loopError } = await supabase.rpc('write_big_intelligence_empire_ops', { p_id: requestId, p_token: intake.internal_nonce, p_loop_id: loop.loop_id, p_status: loop.status, p_state: loop.state, p_events: loop.events });
+    if (loopError || loopSaved !== true) throw new Error('EmpireOps initialization failed / initialisation EmpireOps échouée: ' + (loopError?.message || 'not authorized'));
 
-    return json({ request_id: requestId, status: 'response_ready', empire_ops: { loop_id: loop.loop_id, status: loop.status, events: loop.events.length }, scout: { observed_at: scoutParsed.value.observed_at, evidence_count: evidence.length, sources: evidence.map(({ request_id: _id, ...item }) => item) }, intelligence: a, ail }, 200, headers);
+    return json({ request_id: requestId, status: 'response_ready', empire_ops: { loop_id: loop.loop_id, status: loop.status, events: loop.events.length, token: intake.internal_nonce }, scout: { observed_at: scoutParsed.value.observed_at, evidence_count: evidence.length, sources: evidence.map(({ request_id: _id, ...item }) => item) }, intelligence: a, ail }, 200, headers);
   } catch (error) {
     console.error('[intelligence-request]', error);
     return json({ error: error.message || 'Intelligence processing failed after request persistence / échec du traitement après enregistrement', request_id: requestId }, 502, headers);
