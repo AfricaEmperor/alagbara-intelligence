@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { createLoop, createPulse, mapEffect, resumeLoop, recordDecision, authorizeAction, recordOutcome, emitNextSignal, verifyAuditTrail } from '../../../empireOpsLoop.js';
 
-function client(){const url=process.env.SUPABASE_URL||process.env.NEXT_PUBLIC_SUPABASE_URL;const key=process.env.SUPABASE_ANON_KEY||process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;if(!url||!key)throw new Error('Supabase environment is incomplete');return createClient(url,key);}
+function client(){const url=process.env.SUPABASE_URL||process.env.NEXT_PUBLIC_SUPABASE_URL||'https://hbcxiyyuqgjokvypqrqr.supabase.co';const key=process.env.SUPABASE_ANON_KEY||process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY||'sb_publishable_2XRZBSdnfnDep4yQAwYeFA_K8MCWzas';return createClient(url,key);}
 function json(body,status=200){return new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json','Access-Control-Allow-Origin':'*'} });}
 export async function OPTIONS(){return new Response(null,{status:204,headers:{'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'Content-Type','Access-Control-Allow-Methods':'POST,OPTIONS'}});}
 export async function POST(request){
