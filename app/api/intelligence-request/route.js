@@ -174,5 +174,10 @@ function parseAnalysis(text) {
   } catch (error) { return {ok:false,reason:'model response was not valid JSON / réponse JSON invalide: '+error.message}; }
 }
 
+async function setStatus(supabase, id, nonce, status) {
+  const { data, error } = await supabase.rpc('update_big_intelligence_request_status', { p_id: id, p_nonce: nonce, p_status: status });
+  if (error || data !== true) throw new Error('Could not update intelligence status / impossible de mettre à jour le statut: ' + (error?.message || status));
+}
+
 function corsHeaders() { return {'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'Content-Type','Access-Control-Allow-Methods':'POST, OPTIONS','Content-Type':'application/json'}; }
 function json(body,status,headers) { return new Response(JSON.stringify(body), {status,headers}); }
