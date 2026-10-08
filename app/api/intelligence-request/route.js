@@ -54,8 +54,8 @@ export async function POST(request) {
     const useful = typeof body.useful === 'string' ? body.useful.trim() : '';
     if (!question || question.length > 4000) return json({ error: 'question is required and must be 1–4000 characters / la question est obligatoire et doit contenir 1 à 4000 caractères' }, 400, headers);
 
-    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://hbcxiyyuqgjokvypqrqr.supabase.co';
+    const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_2XRZBSdnfnDep4yQAwYeFA_K8MCWzas';
     if (!supabaseUrl || !supabaseKey) return json({ error: 'Supabase environment is incomplete / environnement Supabase incomplet' }, 500, headers);
     const openaiKey = process.env.OPENAI_API_KEY;
     if (!openaiKey) return json({ error: 'OpenAI environment is incomplete / environnement OpenAI incomplet' }, 500, headers);
