@@ -1,3 +1,5 @@
+import { buildAILEnvelope, validateAIL } from '../../../ail/runtime.js';
+import { createLoop, createPulse, mapEffect } from '../../../empireOpsLoop.js';
 import { createClient } from '@supabase/supabase-js';
 
 const SCOUT_SYSTEM = `You are SCOUT, the evidence-retrieval layer of ALAGBARA. Your job is to observe current external reality, not to analyze or recommend.
@@ -52,8 +54,8 @@ export async function POST(request) {
     const useful = typeof body.useful === 'string' ? body.useful.trim() : '';
     if (!question || question.length > 4000) return json({ error: 'question is required and must be 1–4000 characters / la question est obligatoire et doit contenir 1 à 4000 caractères' }, 400, headers);
 
-    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://hbcxiyyuqgjokvypqrqr.supabase.co';
+    const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_2XRZBSdnfnDep4yQAwYeFA_K8MCWzas';
     if (!supabaseUrl || !supabaseKey) return json({ error: 'Supabase environment is incomplete / environnement Supabase incomplet' }, 500, headers);
     const openaiKey = process.env.OPENAI_API_KEY;
     if (!openaiKey) return json({ error: 'OpenAI environment is incomplete / environnement OpenAI incomplet' }, 500, headers);
@@ -87,10 +89,24 @@ export async function POST(request) {
     const raw = await callANA(openaiKey, JSON.stringify({ request: { id: requestId, question, market: market || null, decision: decision || null, useful: useful || null }, evidence_ledger: evidence, scout_unknowns: scoutParsed.value.unknowns || [], recent_intelligence_memory: recent || [] }), model);
     const parsed = parseAnalysis(raw); if (!parsed.ok) throw new Error(parsed.reason); const a = parsed.value;
 
+    const ail = buildAILEnvelope({
+      request: { id: requestId, question, market: market || null, decision: decision || null },
+      scout: scoutParsed.value,
+      intelligence: a
+    });
+    const ailValidation = validateAIL(ail);
+    if (!ailValidation.ok) throw new Error('AIL validation failed / validation AIL échouée: ' + ailValidation.errors.join('; '));
+
     const { data: completed, error: completionError } = await supabase.rpc('complete_big_intelligence_request', { p_id: requestId, p_nonce: intake.internal_nonce, p_status: 'response_ready', p_pulse: a.pulse, p_facts: a.facts, p_unknowns: a.unknowns, p_assumptions: a.assumptions, p_analysis: a.analysis, p_recommendation: a.recommendation, p_risks: a.risks, p_confidence: a.confidence, p_outcome: null });
     if (completionError || completed !== true) throw new Error('Reasoning succeeded but persistence completion failed / le raisonnement a réussi mais la finalisation a échoué: ' + (completionError?.message || 'request could not be updated'));
+    const loop = createLoop({ signal: question, source: 'ALAGBARA_INTELLIGENCE_RUNTIME', actor: 'SCOUT' });
+    createPulse(loop, { observed: a.pulse, facts: a.facts, unknowns: a.unknowns, assumptions: a.assumptions, evidence: evidence.map(item => item.source_url) });
+    mapEffect(loop, { effects: [a.recommendation], risks: a.risks, opportunities: [a.recommendation] });
+    loop.state.lifecycle = loop.status;
+    const { data: loopSaved, error: loopError } = await supabase.rpc('write_big_intelligence_empire_ops', { p_id: requestId, p_token: intake.internal_nonce, p_loop_id: loop.loop_id, p_status: loop.status, p_state: loop.state, p_events: loop.events });
+    if (loopError || loopSaved !== true) throw new Error('EmpireOps initialization failed / initialisation EmpireOps échouée: ' + (loopError?.message || 'not authorized'));
 
-    return json({ request_id: requestId, status: 'response_ready', scout: { observed_at: scoutParsed.value.observed_at, evidence_count: evidence.length, sources: evidence.map(({ request_id: _id, ...item }) => item) }, intelligence: a }, 200, headers);
+    return json({ request_id: requestId, status: 'response_ready', empire_ops: { loop_id: loop.loop_id, status: loop.status, events: loop.events.length, token: intake.internal_nonce }, scout: { observed_at: scoutParsed.value.observed_at, evidence_count: evidence.length, sources: evidence.map(({ request_id: _id, ...item }) => item) }, intelligence: a, ail }, 200, headers);
   } catch (error) {
     console.error('[intelligence-request]', error);
     return json({ error: error.message || 'Intelligence processing failed after request persistence / échec du traitement après enregistrement', request_id: requestId }, 502, headers);
@@ -156,6 +172,11 @@ function parseAnalysis(text) {
     if (!['low','medium','high'].includes(value.confidence)) return {ok:false,reason:'confidence must be low, medium, or high / doit être low, medium ou high'};
     return {ok:true,value};
   } catch (error) { return {ok:false,reason:'model response was not valid JSON / réponse JSON invalide: '+error.message}; }
+}
+
+async function setStatus(supabase, id, nonce, status) {
+  const { data, error } = await supabase.rpc('update_big_intelligence_request_status', { p_id: id, p_nonce: nonce, p_status: status });
+  if (error || data !== true) throw new Error('Could not update intelligence status / impossible de mettre à jour le statut: ' + (error?.message || status));
 }
 
 function corsHeaders() { return {'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'Content-Type','Access-Control-Allow-Methods':'POST, OPTIONS','Content-Type':'application/json'}; }
