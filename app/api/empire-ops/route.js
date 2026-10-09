@@ -9,7 +9,7 @@ function env() {
   return { url, anonKey, serviceRoleKey };
 }
 function json(body, status = 200) {
-  return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+  return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
 }
 export async function OPTIONS() {
   return new Response(null, { status: 204, headers: { Allow: 'POST, OPTIONS' } });
@@ -20,7 +20,7 @@ async function authorizeOperator(request, cfg) {
   if (!match) return { ok: false, status: 401, error: 'Authentication required' };
   const authClient = createClient(cfg.url, cfg.anonKey, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
   const { data, error } = await authClient.auth.getUser(match[1]);
-  if (error || !data?.user?.id || !data.user.email) return { ok: false, status: 401, error: 'Invalid session' };
+  if (error || !data?.user?.id || !data.user.email || !data.user.email_confirmed_at) return { ok: false, status: 401, error: 'Invalid or unconfirmed session' };
   const allowlist = (process.env.ALAGBARA_OPERATOR_EMAILS || '').split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
   if (!allowlist.length || !allowlist.includes(data.user.email.toLowerCase())) return { ok: false, status: 403, error: 'Operator access denied' };
   return { ok: true, user: data.user };
@@ -28,7 +28,9 @@ async function authorizeOperator(request, cfg) {
 export async function POST(request) {
   let cfg;
   try { cfg = env(); } catch (error) { return json({ error: error.message }, 503); }
-  const operator = await authorizeOperator(request, cfg);
+  let operator;
+  try { operator = await authorizeOperator(request, cfg); }
+  catch (_) { return json({ error: 'Authentication service unavailable' }, 503); }
   if (!operator.ok) return json({ error: operator.error }, operator.status);
   try {
     const rawBody = await request.text();
