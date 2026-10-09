@@ -1,0 +1,35 @@
+name: Security remediation checks
+
+on:
+  push:
+    branches:
+      - fix/security-boundary-v0.1
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  non-production-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run test:security
+      - run: npm run test:ail
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://example.invalid
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-placeholder-only
+          SUPABASE_URL: https://example.invalid
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-only
+          SUPABASE_ANON_KEY: ci-placeholder-only
+          OPENAI_API_KEY: ci-placeholder-only
+          ALAGBARA_OPERATOR_EMAILS: ci-operator@example.invalid
