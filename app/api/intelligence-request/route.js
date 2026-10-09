@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { buildAILEnvelope, validateAIL } from '../../../ail/runtime.js';
 import { createLoop, createPulse, mapEffect } from '../../../empireOpsLoop.js';
 import { createClient } from '@supabase/supabase-js';
@@ -42,28 +43,30 @@ CONFIDENCE — low, medium, or high based on evidence quality.
 Return ONLY raw JSON matching exactly:
 {"pulse":"English text\\nFR: Texte français","facts":["English observed fact\\nFR: Fait observé français"],"unknowns":["English unknown\\nFR: Inconnue française"],"assumptions":["English derived/assumption\\nFR: Déduction/hypothèse française"],"analysis":"English analysis\\nFR: Analyse française","recommendation":"English next step\\nFR: Prochaine étape en français","risks":["English risk\\nFR: Risque français"],"confidence":"low|medium|high"}`;
 
-export async function OPTIONS() { return new Response(null, { status: 204, headers: corsHeaders() }); }
+export async function OPTIONS() { return new Response(null, { status: 204, headers: { Allow: 'POST, OPTIONS' } }); }
 
 export async function POST(request) {
   const headers = corsHeaders(); let requestId = null; let intake = null;
   try {
-    const body = await request.json();
+    const rawBody = await request.text();
+    if (rawBody.length > 16_384) return json({ error: 'Request body too large' }, 413, headers);
+    const body = JSON.parse(rawBody);
     const question = typeof body.question === 'string' ? body.question.trim() : '';
     const market = typeof body.market === 'string' ? body.market.trim() : '';
     const decision = typeof body.decision === 'string' ? body.decision.trim() : '';
     const useful = typeof body.useful === 'string' ? body.useful.trim() : '';
     if (!question || question.length > 4000) return json({ error: 'question is required and must be 1–4000 characters / la question est obligatoire et doit contenir 1 à 4000 caractères' }, 400, headers);
 
-    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://hbcxiyyuqgjokvypqrqr.supabase.co';
-    const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_2XRZBSdnfnDep4yQAwYeFA_K8MCWzas';
-    if (!supabaseUrl || !supabaseKey) return json({ error: 'Supabase environment is incomplete / environnement Supabase incomplet' }, 500, headers);
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !serviceRoleKey) return json({ error: 'Server Supabase configuration is incomplete' }, 500, headers);
     const openaiKey = process.env.OPENAI_API_KEY;
     if (!openaiKey) return json({ error: 'OpenAI environment is incomplete / environnement OpenAI incomplet' }, 500, headers);
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
     const intakeResult = await supabase.rpc('create_big_intelligence_request', { p_question: question, p_market: market || null, p_decision: decision || null, p_useful: useful || null, p_source: 'big-consulting-ui' });
     intake = intakeResult.data;
-    if (intakeResult.error || !intake?.id || !intake?.internal_nonce) return json({ error: 'Could not persist intelligence request / impossible d’enregistrer la demande d’intelligence', detail: intakeResult.error?.message || 'No request id returned' }, 502, headers);
+    if (intakeResult.error || !intake?.id || !intake?.internal_nonce) return json({ error: 'Could not persist intelligence request / impossible d’enregistrer la demande d’intelligence' }, 502, headers);
     requestId = intake.id;
     await setStatus(supabase, requestId, intake.internal_nonce, 'scouting');
 
@@ -82,11 +85,9 @@ export async function POST(request) {
     if (evidenceError) throw new Error('Could not persist evidence ledger / impossible d’enregistrer le registre de preuves: ' + evidenceError.message);
     await setStatus(supabase, requestId, intake.internal_nonce, 'pulsed');
 
-    const { data: recent, error: recentError } = await supabase.rpc('get_recent_big_intelligence_memory', { p_limit: 5 });
-    if (recentError) throw new Error('Could not read intelligence memory / impossible de lire la mémoire d’intelligence: ' + recentError.message);
-
+    // Cross-request memory is intentionally disabled until requests have an explicit owner/tenant boundary.
     await setStatus(supabase, requestId, intake.internal_nonce, 'analyzing');
-    const raw = await callANA(openaiKey, JSON.stringify({ request: { id: requestId, question, market: market || null, decision: decision || null, useful: useful || null }, evidence_ledger: evidence, scout_unknowns: scoutParsed.value.unknowns || [], recent_intelligence_memory: recent || [] }), model);
+    const raw = await callANA(openaiKey, JSON.stringify({ request: { id: requestId, question, market: market || null, decision: decision || null, useful: useful || null }, evidence_ledger: evidence, scout_unknowns: scoutParsed.value.unknowns || [] }), model);
     const parsed = parseAnalysis(raw); if (!parsed.ok) throw new Error(parsed.reason); const a = parsed.value;
 
     const ail = buildAILEnvelope({
@@ -103,13 +104,14 @@ export async function POST(request) {
     createPulse(loop, { observed: a.pulse, facts: a.facts, unknowns: a.unknowns, assumptions: a.assumptions, evidence: evidence.map(item => item.source_url) });
     mapEffect(loop, { effects: [a.recommendation], risks: a.risks, opportunities: [a.recommendation] });
     loop.state.lifecycle = loop.status;
-    const { data: loopSaved, error: loopError } = await supabase.rpc('write_big_intelligence_empire_ops', { p_id: requestId, p_token: intake.internal_nonce, p_loop_id: loop.loop_id, p_status: loop.status, p_state: loop.state, p_events: loop.events });
+    const empireOpsToken = randomUUID();
+    const { data: loopSaved, error: loopError } = await supabase.rpc('write_big_intelligence_empire_ops', { p_id: requestId, p_token: empireOpsToken, p_loop_id: loop.loop_id, p_status: loop.status, p_state: loop.state, p_events: loop.events });
     if (loopError || loopSaved !== true) throw new Error('EmpireOps initialization failed / initialisation EmpireOps échouée: ' + (loopError?.message || 'not authorized'));
 
-    return json({ request_id: requestId, status: 'response_ready', empire_ops: { loop_id: loop.loop_id, status: loop.status, events: loop.events.length, token: intake.internal_nonce }, scout: { observed_at: scoutParsed.value.observed_at, evidence_count: evidence.length, sources: evidence.map(({ request_id: _id, ...item }) => item) }, intelligence: a, ail }, 200, headers);
+    return json({ request_id: requestId, status: 'response_ready', empire_ops: { loop_id: loop.loop_id, status: loop.status, events: loop.events.length }, scout: { observed_at: scoutParsed.value.observed_at, evidence_count: evidence.length, sources: evidence.map(({ request_id: _id, ...item }) => item) }, intelligence: a, ail }, 200, headers);
   } catch (error) {
     console.error('[intelligence-request]', error);
-    return json({ error: error.message || 'Intelligence processing failed after request persistence / échec du traitement après enregistrement', request_id: requestId }, 502, headers);
+    return json({ error: 'Intelligence processing failed', request_id: requestId }, 502, headers);
   }
 }
 
@@ -179,5 +181,5 @@ async function setStatus(supabase, id, nonce, status) {
   if (error || data !== true) throw new Error('Could not update intelligence status / impossible de mettre à jour le statut: ' + (error?.message || status));
 }
 
-function corsHeaders() { return {'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'Content-Type','Access-Control-Allow-Methods':'POST, OPTIONS','Content-Type':'application/json'}; }
+function corsHeaders() { return {'Content-Type':'application/json','Cache-Control':'no-store'}; }
 function json(body,status,headers) { return new Response(JSON.stringify(body), {status,headers}); }

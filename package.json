@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test:ail": "node --experimental-default-type=module --test ail/*.test.js"
+    "test:ail": "node --experimental-default-type=module --test ail/*.test.js",
+    "test:security": "node --test security/*.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.56.0",
