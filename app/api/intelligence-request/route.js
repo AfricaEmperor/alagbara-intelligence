@@ -66,7 +66,7 @@ export async function POST(request) {
     const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
     const intakeResult = await supabase.rpc('create_big_intelligence_request', { p_question: question, p_market: market || null, p_decision: decision || null, p_useful: useful || null, p_source: 'big-consulting-ui' });
     intake = intakeResult.data;
-    if (intakeResult.error || !intake?.id || !intake?.internal_nonce) return json({ error: 'Could not persist intelligence request / impossible d’enregistrer la demande d’intelligence', detail: intakeResult.error?.message || 'No request id returned' }, 502, headers);
+    if (intakeResult.error || !intake?.id || !intake?.internal_nonce) return json({ error: 'Could not persist intelligence request / impossible d’enregistrer la demande d’intelligence' }, 502, headers);
     requestId = intake.id;
     await setStatus(supabase, requestId, intake.internal_nonce, 'scouting');
 
@@ -181,5 +181,5 @@ async function setStatus(supabase, id, nonce, status) {
   if (error || data !== true) throw new Error('Could not update intelligence status / impossible de mettre à jour le statut: ' + (error?.message || status));
 }
 
-function corsHeaders() { return {'Content-Type':'application/json'}; }
+function corsHeaders() { return {'Content-Type':'application/json','Cache-Control':'no-store'}; }
 function json(body,status,headers) { return new Response(JSON.stringify(body), {status,headers}); }
