@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS parties(party_id TEXT PRIMARY KEY, doc TEXT NOT NULL)
 CREATE TABLE IF NOT EXISTS obs_event(observation_id TEXT PRIMARY KEY, event_id TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT, actor TEXT,
   action TEXT, subject TEXT, detail TEXT);
+CREATE TABLE IF NOT EXISTS applied_decisions(decision_id TEXT PRIMARY KEY, applied_at TEXT);
 CREATE TABLE IF NOT EXISTS failures(id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT, source_id TEXT,
   reason TEXT, alternative TEXT);
 """
@@ -153,6 +154,30 @@ class RadarStore:
         self.put_event(ev)
         self.audit(reviewer, f"review:{decision}", event_id, {"from": before, "to": ev.review_status, "note": note})
         return ev
+
+    def apply_decisions(self, jsonl: Path) -> dict[str, int]:
+        """Apply human review decisions exported by PULSE. Idempotent per decision_id; invalid rows are
+        counted and audited, never guessed at."""
+        out = {"applied": 0, "skipped_duplicate": 0, "rejected": 0}
+        if not Path(jsonl).exists():
+            return out
+        for line in Path(jsonl).read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            try:
+                d = json.loads(line)
+                did = d["decision_id"]
+                if self.db.execute("SELECT 1 FROM applied_decisions WHERE decision_id=?", (did,)).fetchone():
+                    out["skipped_duplicate"] += 1
+                    continue
+                self.review(d["event_id"], d["decision"], d["reviewer"], d.get("note", ""))
+                self.db.execute("INSERT INTO applied_decisions VALUES(?,?)", (did, now_iso()))
+                self.db.commit()
+                out["applied"] += 1
+            except (KeyError, ValueError, PermissionError, json.JSONDecodeError) as exc:
+                out["rejected"] += 1
+                self.audit("system", "decision_rejected", str(line)[:80], {"error": type(exc).__name__})
+        return out
 
     # ---- feed for PULSE --------------------------------------------------------------------
     def export_feed(self, generated_at: str | None = None) -> dict[str, Any]:

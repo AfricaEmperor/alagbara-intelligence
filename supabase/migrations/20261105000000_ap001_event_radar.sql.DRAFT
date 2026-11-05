@@ -1,0 +1,41 @@
+-- AP-001 Event Radar persistence — DRAFT, NOT APPLIED.
+-- Applying to any Supabase project requires human approval (production DB writes are gated).
+-- Mirrors the SQLite store in ana_engine/store.py. RLS is enabled on every table; no anon access.
+-- Writes happen only through the service role in the Python worker (never in client code).
+-- Reviewers (authenticated, listed in radar_reviewers) may read all and change review status only
+-- through radar_review_event(), which audits the change.
+
+create table radar_evidence (observation_id text primary key, doc jsonb not null, created_at timestamptz default now());
+create table radar_venues   (venue_id text primary key, doc jsonb not null, updated_at timestamptz default now());
+create table radar_parties  (party_id text primary key, doc jsonb not null);
+create table radar_events   (event_id text primary key, doc jsonb not null,
+  review_status text not null default 'pending' check (review_status in ('pending','approved','rejected','correction_requested')),
+  start_at text, updated_at timestamptz default now());
+create table radar_obs_event(observation_id text primary key references radar_evidence, event_id text not null references radar_events);
+create table radar_audit    (id bigserial primary key, at timestamptz default now(), actor text not null, action text not null, subject text, detail jsonb);
+create table radar_reviewers(user_id uuid primary key references auth.users);
+
+alter table radar_evidence enable row level security;  alter table radar_venues enable row level security;
+alter table radar_parties enable row level security;   alter table radar_events enable row level security;
+alter table radar_obs_event enable row level security; alter table radar_audit enable row level security;
+alter table radar_reviewers enable row level security;
+
+create policy reviewers_read_events   on radar_events   for select to authenticated using (exists(select 1 from radar_reviewers r where r.user_id = auth.uid()));
+create policy reviewers_read_evidence on radar_evidence for select to authenticated using (exists(select 1 from radar_reviewers r where r.user_id = auth.uid()));
+create policy reviewers_read_venues   on radar_venues   for select to authenticated using (exists(select 1 from radar_reviewers r where r.user_id = auth.uid()));
+create policy reviewers_read_parties  on radar_parties  for select to authenticated using (exists(select 1 from radar_reviewers r where r.user_id = auth.uid()));
+create policy reviewers_read_audit    on radar_audit    for select to authenticated using (exists(select 1 from radar_reviewers r where r.user_id = auth.uid()));
+-- no insert/update/delete policies: direct writes are denied for non-service roles.
+
+create function radar_review_event(p_event text, p_decision text, p_note text default '')
+returns void language plpgsql security definer set search_path = public as $$
+declare s text;
+begin
+  if not exists(select 1 from radar_reviewers where user_id = auth.uid()) then raise exception 'not a reviewer'; end if;
+  s := case p_decision when 'approve' then 'approved' when 'reject' then 'rejected' when 'request_correction' then 'correction_requested' end;
+  if s is null then raise exception 'invalid decision'; end if;
+  update radar_events set review_status = s, updated_at = now() where event_id = p_event;
+  insert into radar_audit(actor, action, subject, detail) values (auth.uid()::text, 'review:'||p_decision, p_event, jsonb_build_object('note', p_note));
+end $$;
+revoke all on function radar_review_event(text,text,text) from public, anon;
+grant execute on function radar_review_event(text,text,text) to authenticated;

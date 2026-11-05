@@ -22,6 +22,7 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("ingest-upload"); s.add_argument("source_id"); s.add_argument("files", nargs="+")
     s = sub.add_parser("review"); s.add_argument("event_id"); s.add_argument("decision", choices=["approve", "reject", "request_correction"])
     s.add_argument("--by", required=True); s.add_argument("--note", default="")
+    s = sub.add_parser("apply-decisions"); s.add_argument("file")
     s = sub.add_parser("export-feed"); s.add_argument("--output", default="-")
     a = ap.parse_args(argv)
 
@@ -47,6 +48,8 @@ def main(argv: list[str] | None = None) -> int:
         if a.cmd == "review":
             ev = store.review(a.event_id, a.decision, a.by, a.note); print(ev.event_id, "->", ev.review_status)
             return 0
+        if a.cmd == "apply-decisions":
+            print(json.dumps(store.apply_decisions(Path(a.file)))); return 0
         if a.cmd == "export-feed":
             out = json.dumps(store.export_feed(), indent=2, ensure_ascii=False)
             (print(out) if a.output == "-" else Path(a.output).write_text(out)); return 0

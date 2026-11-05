@@ -176,3 +176,16 @@ def test_missing_text_is_skipped_not_invented(store, registry, poster):
     out = run_upload(store, registry, poster("e.png", None), "src-upload-1", P)
     assert out["event_id"] is None and store.events() == []
     assert any(a["action"] == "extraction_skipped" for a in store.audit_log())
+
+
+def test_apply_decisions_from_pulse_is_idempotent_and_rejects_bad_rows(store, registry, poster, tmp_path):
+    import json
+    out = run_upload(store, registry, poster("a.png", POSTER_A), "src-upload-1", P)
+    f = tmp_path / "decisions.jsonl"
+    good = {"decision_id": "d1", "event_id": out["event_id"], "decision": "approve", "reviewer": "Reviewer One", "note": ""}
+    bad = {"decision_id": "d2", "event_id": out["event_id"], "decision": "publish", "reviewer": "x"}
+    anon = {"decision_id": "d3", "event_id": out["event_id"], "decision": "reject", "reviewer": " "}
+    f.write_text("\n".join(json.dumps(r) for r in (good, bad, anon)) + "\nnot json\n")
+    assert store.apply_decisions(f) == {"applied": 1, "skipped_duplicate": 0, "rejected": 3}
+    assert store.apply_decisions(f)["applied"] == 0
+    assert store.get_event(out["event_id"]).review_status == "approved"
