@@ -179,13 +179,16 @@ def test_missing_text_is_skipped_not_invented(store, registry, poster):
 
 
 def test_apply_decisions_from_pulse_is_idempotent_and_rejects_bad_rows(store, registry, poster, tmp_path):
+    # ZR-01: row format now requires a client decision_id (8-64 chars) and version_seen.
     import json
     out = run_upload(store, registry, poster("a.png", POSTER_A), "src-upload-1", P)
     f = tmp_path / "decisions.jsonl"
-    good = {"decision_id": "d1", "event_id": out["event_id"], "decision": "approve", "reviewer": "Reviewer One", "note": ""}
-    bad = {"decision_id": "d2", "event_id": out["event_id"], "decision": "publish", "reviewer": "x"}
-    anon = {"decision_id": "d3", "event_id": out["event_id"], "decision": "reject", "reviewer": " "}
+    v = store.event_version(out["event_id"])
+    base = {"event_id": out["event_id"], "version_seen": v, "note": ""}
+    good = {**base, "decision_id": "dec-0001-good", "decision": "approve", "reviewer": "Reviewer One"}
+    bad = {**base, "decision_id": "dec-0002-bad", "decision": "publish", "reviewer": "x"}
+    anon = {**base, "decision_id": "dec-0003-anon", "decision": "reject", "reviewer": " "}
     f.write_text("\n".join(json.dumps(r) for r in (good, bad, anon)) + "\nnot json\n")
-    assert store.apply_decisions(f) == {"applied": 1, "skipped_duplicate": 0, "rejected": 3}
+    assert store.apply_decisions(f) == {"applied": 1, "skipped_duplicate": 0, "rejected": 3, "stale": 0}
     assert store.apply_decisions(f)["applied"] == 0
     assert store.get_event(out["event_id"]).review_status == "approved"

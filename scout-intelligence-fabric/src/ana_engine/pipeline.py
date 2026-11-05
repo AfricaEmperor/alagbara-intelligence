@@ -92,6 +92,10 @@ def _norm_claim_value(c: FieldClaim) -> str:
     return norm_name(c.value or "")
 
 
+def _conflict_sig(conflicts: list[dict]) -> frozenset:
+    return frozenset((c["field"], frozenset(norm_name(v["value"]) for v in c["values"])) for c in conflicts)
+
+
 def find_conflicts(claims: list[FieldClaim]) -> list[dict]:
     out = []
     for f in CONFLICT_FIELDS:
@@ -144,58 +148,68 @@ def process_evidence(store: RadarStore, evidence: EvidenceRecord, provider: Text
     if not res.text:
         store.audit("ana", "extraction_skipped", evidence.observation_id, {"reason": res.note or res.method})
         return None
-    ex: Extraction = extract_event(res.text, evidence.observation_id, res.state, res.method.replace(":", "-"))
-    claims = ex.claims
-    start_at, end_at, unk = make_start_end(claims)
-    unknown = sorted(set(ex.unknown) | set(unk))
+    with store.transaction():  # atomic: venues, parties, event, link and audit commit together or not at all
+        existing = store.event_for_observation(evidence.observation_id)  # re-check under the write lock
+        if existing:
+            return store.get_event(existing)
+        ex: Extraction = extract_event(res.text, evidence.observation_id, res.state, res.method.replace(":", "-"))
+        claims = ex.claims
+        start_at, end_at, unk = make_start_end(claims)
+        unknown = sorted(set(ex.unknown) | set(unk))
 
-    title_c = first(claims, "title")
-    venue_c = first(claims, "venue")
-    district_c = first(claims, "district")
-    venue = None
-    if venue_c:
-        venue, _ = resolve_venue(store, venue_c.value, district_c.value if district_c else None, evidence.observation_id)
-    start_date = start_at[:10] if start_at else None
-    target, cands = find_match(store, title_c.value if title_c else None, start_date, venue.venue_id if venue else None)
+        title_c = first(claims, "title")
+        venue_c = first(claims, "venue")
+        district_c = first(claims, "district")
+        venue = None
+        if venue_c:
+            venue, _ = resolve_venue(store, venue_c.value, district_c.value if district_c else None, evidence.observation_id)
+        start_date = start_at[:10] if start_at else None
+        target, cands = find_match(store, title_c.value if title_c else None, start_date, venue.venue_id if venue else None)
 
-    cat = first(claims, "category")
-    if target:  # same event, new observation: keep every claim, surface contradictions
-        ev = target
-        ev.evidence_references = list(dict.fromkeys(ev.evidence_references + [evidence.observation_id]))
-        ev.field_claims = ev.field_claims + claims
-        ev.contradictions = find_conflicts(ev.field_claims)
-        if ev.venue_id is None and venue:
-            ev.venue_id = venue.venue_id
-            ev.unknown_fields = [u for u in ev.unknown_fields if u != "venue"]
-        if ev.start_at is None and start_at:
-            ev.start_at, ev.end_at = start_at, end_at
-            ev.unknown_fields = [u for u in ev.unknown_fields if u != "start_date"]
-        if ev.review_status in ("approved", "rejected"):  # new evidence reopens human review
-            store.audit("ana", "review_reopened", ev.event_id, {"reason": "new observation merged"})
-            ev.review_status = "pending"
-        store.audit("ana", "observation_merged", ev.event_id, {"observation": evidence.observation_id})
-    else:
-        eid = f"evt_{_h(norm_title(title_c.value), start_date, CITY)}" if (title_c and start_date) \
-            else f"evt_{_h(evidence.observation_id)}"
-        ev = Event(event_id=eid, title=title_c.value if title_c else None, description=None,
-                   start_at=start_at, end_at=end_at, timezone=TIMEZONE,
-                   venue_id=venue.venue_id if venue else None, organizer_id=None, performer_ids=[],
-                   event_category=cat.value if cat else None, status="scheduled" if start_at else "unknown",
-                   evidence_references=[evidence.observation_id], confidence="low",
-                   review_status="pending", field_claims=list(claims),
-                   unknown_fields=unknown, duplicate_candidates=cands)
-        for note in ex.notes:  # e.g. weekday without date, day+month without year: surfaced, not inferred
-            store.audit("ana", "extraction_note", ev.event_id, {"note": note})
-        org_c = first(claims, "organizer")
-        if org_c:
-            ev.organizer_id = _party(store, org_c.value, "organizer", ev.event_id, evidence.observation_id).party_id
-        for c in (c for c in claims if c.field == "performer"):
-            role = "dj" if c.method.endswith(":dj") else "artist"
-            ev.performer_ids.append(_party(store, c.value, role, ev.event_id, evidence.observation_id).party_id)
-        ev.contradictions = find_conflicts(ev.field_claims)
-    ev.confidence = confidence(ev, res.state == "unverified")
-    store.put_event(ev)
-    store.link_observation(evidence.observation_id, ev.event_id)
+        cat = first(claims, "category")
+        base_version = None
+        if target:  # same event, new observation: keep every claim, surface contradictions
+            ev = target
+            base_version = store.event_version(ev.event_id)
+            conflicts_before = _conflict_sig(find_conflicts(ev.field_claims))
+            ev.evidence_references = list(dict.fromkeys(ev.evidence_references + [evidence.observation_id]))
+            ev.field_claims = ev.field_claims + claims
+            ev.contradictions = find_conflicts(ev.field_claims)
+            if ev.venue_id is None and venue:
+                ev.venue_id = venue.venue_id
+                ev.unknown_fields = [u for u in ev.unknown_fields if u != "venue"]
+            if ev.start_at is None and start_at:
+                ev.start_at, ev.end_at = start_at, end_at
+                ev.unknown_fields = [u for u in ev.unknown_fields if u != "start_date"]
+            # A human decision is only reopened (explicitly, audited, history kept) when the new evidence
+            # introduces a NEW contradiction. Corroborating evidence leaves the decision intact.
+            if ev.review_status in ("approved", "rejected") and _conflict_sig(ev.contradictions) != conflicts_before:
+                store.record_system_reopen(ev.event_id, ev.review_status,
+                                           "new observation introduced a contradiction")
+                ev.review_status = "pending"
+            store.audit("ana", "observation_merged", ev.event_id, {"observation": evidence.observation_id})
+        else:
+            eid = f"evt_{_h(norm_title(title_c.value), start_date, CITY)}" if (title_c and start_date) \
+                else f"evt_{_h(evidence.observation_id)}"
+            ev = Event(event_id=eid, title=title_c.value if title_c else None, description=None,
+                       start_at=start_at, end_at=end_at, timezone=TIMEZONE,
+                       venue_id=venue.venue_id if venue else None, organizer_id=None, performer_ids=[],
+                       event_category=cat.value if cat else None, status="scheduled" if start_at else "unknown",
+                       evidence_references=[evidence.observation_id], confidence="low",
+                       review_status="pending", field_claims=list(claims),
+                       unknown_fields=unknown, duplicate_candidates=cands)
+            for note in ex.notes:  # e.g. weekday without date, day+month without year: surfaced, not inferred
+                store.audit("ana", "extraction_note", ev.event_id, {"note": note})
+            org_c = first(claims, "organizer")
+            if org_c:
+                ev.organizer_id = _party(store, org_c.value, "organizer", ev.event_id, evidence.observation_id).party_id
+            for c in (c for c in claims if c.field == "performer"):
+                role = "dj" if c.method.endswith(":dj") else "artist"
+                ev.performer_ids.append(_party(store, c.value, role, ev.event_id, evidence.observation_id).party_id)
+            ev.contradictions = find_conflicts(ev.field_claims)
+        ev.confidence = confidence(ev, res.state == "unverified")
+        store.put_event(ev, expected_version=base_version)  # None => create; else versioned update
+        store.link_observation(evidence.observation_id, ev.event_id)
     return ev
 
 
