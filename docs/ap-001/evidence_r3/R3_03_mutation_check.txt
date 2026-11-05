@@ -1,0 +1,11 @@
+KILLED  M1 review_event without pinned search_path              failing tests:  1  [hardening] every SECURITY DEFINER function pins search_path = ''
+KILLED  M2 no replay (decision_id) handling                     failing tests:  4  [review] replay with an OLD version is a no-op (duplicate); [review] decision_id reused with a different decision; [review] public wrapper works and is idempotent
+KILLED  M3 no stale-version check in review_event               failing tests:  1  [review] stale version rejected, nothing changes
+KILLED  M4 RLS disabled on radar.events                         failing tests:  8  [non-reviewer(no role)] SELECT events/evidence/venues/parties/obs_event/decisio; [non-reviewer(role only in user_metadata)] SELECT events; [non-reviewer(email unconfirmed)] SELECT events / review_event
+KILLED  M5 anon granted SELECT on radar.events                  failing tests:  2  [grants] anon holds NO privilege of any kind on any radar table; [hardening] no radar table grant to PUBLIC or anon
+KILLED  M6 no reviewer check in review_event                    failing tests: 14  [non-reviewer(no role)] review_event -> not a reviewer; [non-reviewer(no role)] public wrapper -> not a reviewer; [non-reviewer(role only in user_metadata)] review_event
+KILLED  M7 exactly-one-row guard removed                        failing tests:  3  [integrity] zero rows updated -> XX001, no decision/audit rows; [integrity] ...and no audit row for it; [consistency] version == 1 + human decisions + ingest updates (a reop
+KILLED  M8 decisions no longer append-only                      failing tests:  1  [immutability] even the owner cannot UPDATE/DELETE history
+KILLED  M9 authenticated granted direct INSERT on events        failing tests:  1  [grants] authenticated holds ONLY SELECT on radar tables (no wri
+
+9/9 mutants killed

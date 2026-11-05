@@ -122,3 +122,20 @@ Not yet tested: evidence/venue/party tables, storage policies, `service_role` wr
 
 ## 7. Rollback and recovery (current state)
 No down-migrations exist (security-branch pack: "do not roll back by restoring anonymous RPC execution"). SQLite store has no backup, no WAL mode set, no integrity check [V: code]. PITR/backups for Supabase: [U]. Recommendation: forward-only migrations with a paired reviewed rollback script, branch-DB rehearsal, nightly export of evidence + decisions (append-only, hash-verified).
+
+---
+## R3 status of the R1 findings (2026-11-05)
+
+| ID | R1 finding | R3 status | Class |
+|---|---|---|---|
+| C1 | Stale write erased an approval | Fixed in SQLite (R2) and in the migration design; concurrency proven with two real PostgreSQL sessions | TESTED LOCALLY |
+| C2 | Radar public if deployed | Default deny + real Auth path (R3-B); 133-case matrix against a mock IdP | TESTED LOCALLY; real Auth BLOCKED |
+| C3 | `next` critical advisories | `next@16.4.5`, `npm audit` 0 | VERIFIED |
+| H1 | Draft migration defective | **Replaced by v2** (own schema, explicit grants, RLS, definer functions with empty `search_path`, live reviewer check, single-transaction review, replay/stale/exactly-one-row guards, generated status): 93 SQL tests, 2 concurrency tests, 9/9 mutants killed — **still unapplied** | TESTED LOCALLY; apply BLOCKED |
+| H2/H3 | `main` intake endpoint; anon policies in `main/migration.sql` | Untouched (out of AP-001 scope) | NOT STARTED |
+| H4 | No Supabase target | Re-inventoried: ALAGBARA Development is the only plausible candidate (0 auth users, unrelated Abuja data, wide default grants); **not designated** | BLOCKED |
+| M1 | Shared review token | Removed (R2); individual reviewers via OTP (R3) | TESTED LOCALLY |
+| M2 | File-based storage vs serverless | Unchanged | BLOCKED |
+| M3 | Headers / logging | Radar: `no-store`, `noindex`, `nosniff`, CSP sandbox on media; structured denial logs; **site-wide headers not added** | TESTED LOCALLY (Radar only) |
+
+New R3 facts established read-only on a live project (VERIFIED): `postgres` is not a superuser but has `BYPASSRLS`; `service_role` has `BYPASSRLS`; `anon`/`authenticated` do not; schema `public` auto-grants ALL privileges (incl. `TRUNCATE`) to `anon`/`authenticated`/`service_role`, a new schema does not; real `auth.uid()` reads `request.jwt.claims.sub` or the legacy claim.

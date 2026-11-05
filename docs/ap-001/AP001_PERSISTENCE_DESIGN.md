@@ -63,3 +63,22 @@ Ownership: **only the worker (service role, server-side) writes evidence/events/
 
 ## 7. Verdict
 Coexistence is **feasible and low-risk if sequenced**: fix C1/H1 first (local, no DB needed), prove P1–P6 on a disposable DB, then on a branch DB. Without the fixes, a migration would convert a latent local bug into silent production data loss.
+
+---
+## R3 update (2026-11-05) — what changed since this design was written
+
+The R1 design above is superseded where it conflicts with the following. Full detail and evidence: `AP001_R3_READINESS_REPORT.md` §3, §5–§7.
+
+| R1 statement | R3 status |
+|---|---|
+| "Mutable events need a version check" | **Done in SQLite** (R2) and **in the corrected migration** (`events.version`, `upsert_event`, `review_event` with row lock) — TESTED LOCALLY |
+| "Decisions are an append-only entity" | **Done** both sides; `decision_id` PK; replay = no-op; id reuse with different payload rejected — TESTED LOCALLY, behaviorally identical on SQLite and PostgreSQL (parity test) |
+| "`review_status` single source of truth" | **Done**: generated column of the JSON document |
+| "Reviewer table `radar_reviewers`" | **Dropped**: reviewer = Auth user with server-side `app_metadata.radar_role`, checked live against `auth.users` (one source of truth) |
+| "Backfill idempotent, hash-checked, diffed" | **Implemented** (`ana_engine/pg_sync.py`, CLI `pg-backfill-sql` / `pg-reconcile`) and TESTED LOCALLY against a disposable PG 16: zero-difference reconciliation, idempotent re-run, divergence detection, conflict abort without overwrite, interrupted-run recovery |
+| "Media in a private storage bucket" | **NOT STARTED** (hashes reconcile; bytes do not) |
+| "Rebuild events from evidence + decisions" (test P6) | **NOT STARTED** |
+| Audit on SQLite had no natural key | `legacy_sqlite_id` added to `radar.audit` / `radar.failures` for idempotent backfill |
+| Open question: SQLite store took the write lock on every open | **Fixed** (R3): a deadlock the tests found; now writes only when a migration is needed |
+
+Not covered by reconciliation (so not claimed): `failures`, `decision_rejections`, legacy `applied_decisions`, media bytes, ingestion-path equivalence (`upsert_event` vs SQLite pipeline), cross-store concurrency, volume. Nothing has run on Supabase.

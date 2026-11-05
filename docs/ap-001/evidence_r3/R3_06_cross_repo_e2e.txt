@@ -1,0 +1,28 @@
+
+STEP  RESULT CHECK
+E1    PASS   unauthorized source rejected (exit 2, nothing stored)
+E1    PASS   authorized upload ingested; evidence created; event created
+E2    PASS   re-ingesting the same upload is idempotent (same observation, no new event/evidence)
+E3    PASS   duplicate event from a second source resolves to ONE canonical event with 2 observations
+E4    PASS   PULSE shows the canonical event to an authorized reviewer
+E4    PASS   same page denied without credentials (redirect to sign-in), no event data
+E4    PASS   event detail renders with provenance; poster media served to reviewer
+E5    PASS   missing date stays unknown (start_at null, declared) and is shown as 'Date unknown', not invented
+E6    PASS   reviewer decision recorded by PULSE as a file keyed by decisionId, reviewer from session
+E7    PASS   contradictory time from a third observation: ONE event, both values preserved, version bumped
+E7    PASS   PULSE review page surfaces the conflict
+E8    PASS   PULSE rejects a decision made against a stale version (409), nothing recorded
+E8    PASS   Python rejects the stale decision file recorded before the conflict (stale=1, applied=0)
+E8    PASS   event untouched by the stale decision (still pending)
+E9    PASS   authorized decision on fresh version applied exactly once and shown as Approved in PULSE
+E10   PASS   duplicate decision: PULSE reports duplicate, Python applies nothing, no new audit rows   [audit 6 -> 6]
+E11   PASS   invalid reviewers (no role / role only in user_metadata) rejected with 403; nothing recorded
+E12   PASS   missing media file: media route 404 without detail; event page still renders (no 500)
+E13   PASS   truncated feed: authorized page shows an explicit error and NO event data; decisions refused (503)
+E13   PASS   feed with an unknown contract version refused
+E13   PASS   re-export restores service
+E14   PASS   half-written decision file rejected, nothing applied
+E14   PASS   after the file is completed the same decision applies on the next run (recovery)
+E15   PASS   decision history and audit rows agree with every event's final state   [[]]
+
+24/24 passed

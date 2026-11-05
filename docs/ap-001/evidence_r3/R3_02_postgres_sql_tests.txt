@@ -1,0 +1,195 @@
+server: 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)
+== applying migration as postgres_sim (non-superuser, BYPASSRLS) to scratch database radar_r3_8672
+migration applied: OK
+
+== running test suite
+psql:/tmp/tmp.YZO2mFlUQN/radar_rls_test.sql:217: NOTICE:  truncate cascades to table "obs_event"
+psql:/tmp/tmp.YZO2mFlUQN/radar_rls_test.sql:217: NOTICE:  truncate cascades to table "decisions"
+
+==== RESULTS ====
+ n  |                   grp                    |                                                 name                                                  |                     expected                      |                      actual                       | result 
+----+------------------------------------------+-------------------------------------------------------------------------------------------------------+---------------------------------------------------+---------------------------------------------------+--------
+  1 | seed                                     | upsert event A (create)                                                                               | ok                                                | ok                                                | PASS
+  2 | seed                                     | upsert event B (create)                                                                               | ok                                                | ok                                                | PASS
+  3 | seed                                     | upsert event C (create)                                                                               | ok                                                | ok                                                | PASS
+  4 | seed                                     | insert evidence (service_role)                                                                        | ok                                                | ok                                                | PASS
+  5 | seed                                     | insert venue (service_role)                                                                           | ok                                                | ok                                                | PASS
+  6 | seed                                     | link observation (service_role)                                                                       | ok                                                | ok                                                | PASS
+  7 | anon                                     | SELECT radar.audit                                                                                    | err:42501                                         | err:42501                                         | PASS
+  8 | anon                                     | SELECT radar.decision_rejections                                                                      | err:42501                                         | err:42501                                         | PASS
+  9 | anon                                     | SELECT radar.decisions                                                                                | err:42501                                         | err:42501                                         | PASS
+ 10 | anon                                     | SELECT radar.events                                                                                   | err:42501                                         | err:42501                                         | PASS
+ 11 | anon                                     | SELECT radar.evidence                                                                                 | err:42501                                         | err:42501                                         | PASS
+ 12 | anon                                     | SELECT radar.failures                                                                                 | err:42501                                         | err:42501                                         | PASS
+ 13 | anon                                     | SELECT radar.obs_event                                                                                | err:42501                                         | err:42501                                         | PASS
+ 14 | anon                                     | SELECT radar.parties                                                                                  | err:42501                                         | err:42501                                         | PASS
+ 15 | anon                                     | SELECT radar.venues                                                                                   | err:42501                                         | err:42501                                         | PASS
+ 16 | anon                                     | INSERT/UPDATE/DELETE/TRUNCATE events                                                                  | err:42501|err:42501|err:42501|err:42501           | err:42501|err:42501|err:42501|err:42501           | PASS
+ 17 | anon                                     | EXECUTE review_event                                                                                  | err:42501                                         | err:42501                                         | PASS
+ 18 | anon                                     | EXECUTE public.radar_review_event                                                                     | err:42501                                         | err:42501                                         | PASS
+ 19 | anon                                     | EXECUTE upsert_event / backfill_event                                                                 | err:42501|err:42501                               | err:42501|err:42501                               | PASS
+ 20 | anon                                     | EXECUTE is_reviewer                                                                                   | err:42501                                         | err:42501                                         | PASS
+ 21 | non-reviewer(no role)                    | SELECT events/evidence/venues/parties/obs_event/decisions                                             | rows:0|rows:0|rows:0|rows:0|rows:0|rows:0         | rows:0|rows:0|rows:0|rows:0|rows:0|rows:0         | PASS
+ 22 | non-reviewer(no role)                    | review_event -> not a reviewer                                                                        | err:42501                                         | err:42501                                         | PASS
+ 23 | non-reviewer(no role)                    | public wrapper -> not a reviewer                                                                      | err:42501                                         | err:42501                                         | PASS
+ 24 | non-reviewer(no role)                    | direct writes denied                                                                                  | err:42501|err:42501|err:42501                     | err:42501|err:42501|err:42501                     | PASS
+ 25 | non-reviewer(no role)                    | cannot read auth.users                                                                                | err:42501                                         | err:42501                                         | PASS
+ 26 | non-reviewer(no role)                    | is_reviewer() = false                                                                                 | false                                             | false                                             | PASS
+ 27 | non-reviewer(role only in user_metadata) | SELECT events                                                                                         | rows:0                                            | rows:0                                            | PASS
+ 28 | non-reviewer(role only in user_metadata) | review_event                                                                                          | err:42501                                         | err:42501                                         | PASS
+ 29 | non-reviewer(email unconfirmed)          | SELECT events / review_event                                                                          | rows:0|err:42501                                  | rows:0|err:42501                                  | PASS
+ 30 | non-reviewer(banned)                     | SELECT events / review_event                                                                          | rows:0|err:42501                                  | rows:0|err:42501                                  | PASS
+ 31 | non-reviewer(deleted)                    | SELECT events / review_event                                                                          | rows:0|err:42501                                  | rows:0|err:42501                                  | PASS
+ 32 | non-reviewer(unknown role value)         | SELECT events / review_event                                                                          | rows:0|err:42501                                  | rows:0|err:42501                                  | PASS
+ 33 | authenticated, no subject                | review_event -> not authenticated                                                                     | err:28000                                         | err:28000                                         | PASS
+ 34 | authenticated, no subject                | SELECT events                                                                                         | rows:0                                            | rows:0                                            | PASS
+ 35 | reviewer                                 | SELECT events (3 seeded)                                                                              | rows:3                                            | rows:3                                            | PASS
+ 36 | reviewer                                 | SELECT evidence/venues/obs_event                                                                      | rows:1|rows:1|rows:1                              | rows:1|rows:1|rows:1                              | PASS
+ 37 | reviewer                                 | audit is admin-only (reviewer sees none)                                                              | rows:0                                            | rows:0                                            | PASS
+ 38 | reviewer                                 | failures / rejections admin-only                                                                      | rows:0|rows:0                                     | rows:0|rows:0                                     | PASS
+ 39 | reviewer                                 | direct INSERT/UPDATE/DELETE/TRUNCATE on events denied                                                 | err:42501|err:42501|err:42501|err:42501           | err:42501|err:42501|err:42501|err:42501           | PASS
+ 40 | reviewer                                 | direct writes to decisions/audit/evidence denied                                                      | err:42501|err:42501|err:42501                     | err:42501|err:42501|err:42501                     | PASS
+ 41 | reviewer                                 | cannot call ingestion / backfill functions                                                            | err:42501|err:42501                               | err:42501|err:42501                               | PASS
+ 42 | reviewer                                 | is_reviewer() = true, is_admin() = false                                                              | true|false                                        | true|false                                        | PASS
+ 43 | admin                                    | audit visible to admin                                                                                | rows:3                                            | rows:3                                            | PASS
+ 44 | admin                                    | is_admin() = true                                                                                     | true                                              | true                                              | PASS
+ 45 | review                                   | approve with the right version                                                                        | applied|2|approved                                | applied|2|approved                                | PASS
+ 46 | review                                   | column status == JSON status                                                                          | approved|approved                                 | approved|approved                                 | PASS
+ 47 | review                                   | replay with an OLD version is a no-op (duplicate)                                                     | duplicate|2                                       | duplicate|2                                       | PASS
+ 48 | review                                   | replay x3 adds no decision row                                                                        | rows:1                                            | rows:1                                            | PASS
+ 49 | review                                   | decision_id reused with a different decision                                                          | err:23505                                         | err:23505                                         | PASS
+ 50 | review                                   | decision_id reused for a different event                                                              | err:23505                                         | err:23505                                         | PASS
+ 51 | review                                   | stale version rejected, nothing changes                                                               | err:40001|2|approved                              | err:40001|2|approved                              | PASS
+ 52 | review                                   | unknown event                                                                                         | err:P0002                                         | err:P0002                                         | PASS
+ 53 | review                                   | invalid decision / id / version / note                                                                | err:22023|err:22023|err:22023|err:22023           | err:22023|err:22023|err:22023|err:22023           | PASS
+ 54 | review                                   | public wrapper works and is idempotent                                                                | applied|duplicate                                 | applied|duplicate                                 | PASS
+ 55 | review                                   | only the intended event changed (C untouched)                                                         | pending|1                                         | pending|1                                         | PASS
+ 56 | review                                   | second reviewer reusing first reviewer's decision_id -> rejected                                      | err:23505                                         | err:23505                                         | PASS
+ 57 | review                                   | second reviewer decides C                                                                             | applied                                           | applied                                           | PASS
+ 58 | integrity                                | zero rows updated -> XX001, no decision/audit rows                                                    | err:XX001|rows:0                                  | err:XX001|rows:0                                  | PASS
+ 59 | integrity                                | ...and no audit row for it                                                                            | rows:0                                            | rows:0                                            | PASS
+ 60 | integrity                                | audit failure rolls back event + decision (one transaction)                                           | err:23514|2|correction_requested|rows:0           | err:23514|2|correction_requested|rows:0           | PASS
+ 61 | hardening                                | every SECURITY DEFINER function pins search_path = ''                                                 | 0                                                 | 0                                                 | PASS
+ 62 | hardening                                | hostile search_path cannot redirect the definer functions (decoy table untouched)                     | applied|0|0                                       | applied|0|0                                       | PASS
+ 63 | ingest                                   | create pending event                                                                                  | 1                                                 | 1                                                 | PASS
+ 64 | ingest                                   | creating an existing event again -> unique violation                                                  | err:23505                                         | err:23505                                         | PASS
+ 65 | ingest                                   | new events must be pending                                                                            | err:22023                                         | err:22023                                         | PASS
+ 66 | ingest                                   | update with the right version bumps it                                                                | 2                                                 | 2                                                 | PASS
+ 67 | ingest                                   | stale update rejected                                                                                 | err:40001                                         | err:40001                                         | PASS
+ 68 | ingest                                   | ingestion cannot approve; row unchanged                                                               | err:42501|2|pending                               | err:42501|2|pending                               | PASS
+ 69 | ingest                                   | reopen WITHOUT a reason is refused (evt_c is rejected)                                                | err:42501                                         | err:42501                                         | PASS
+ 70 | ingest                                   | reopen of an approved event WITH a reason                                                             | 3|pending                                         | 3|pending                                         | PASS
+ 71 | ingest                                   | reopen recorded as system decision + audit row; human approval kept                                   | approve:human|reopen:system|rows:1                | approve:human|reopen:system|rows:1                | PASS
+ 72 | ingest                                   | contract checks: wrong timezone / empty evidence                                                      | err:23514|err:23514                               | err:23514|err:23514                               | PASS
+ 73 | ingest                                   | service_role cannot UPDATE/DELETE events or touch history directly                                    | err:42501|err:42501|err:42501|err:42501|err:42501 | err:42501|err:42501|err:42501|err:42501|err:42501 | PASS
+ 74 | ingest                                   | evidence: duplicate observation / mismatched doc / update                                             | err:23505|err:23514|err:42501                     | err:23505|err:23514|err:42501                     | PASS
+ 75 | backfill                                 | insert-if-absent preserves doc and version                                                            | inserted|5                                        | inserted|5                                        | PASS
+ 76 | backfill                                 | same row again is a no-op                                                                             | unchanged                                         | unchanged                                         | PASS
+ 77 | backfill                                 | a DIFFERENT row for the same id is a conflict, never overwritten                                      | err:23505|5                                       | err:23505|5                                       | PASS
+ 78 | immutability                             | even the owner cannot UPDATE/DELETE history                                                           | err:42501|err:42501|err:42501|err:42501           | err:42501|err:42501|err:42501|err:42501           | PASS
+ 79 | immutability                             | even the owner cannot TRUNCATE: plain (refused by FK) / CASCADE (refused by trigger) / history tables | err:0A000|err:42501|err:42501|err:42501           | err:0A000|err:42501|err:42501|err:42501           | PASS
+ 80 | immutability                             | review_status cannot be written independently of the JSON document                                    | err:428C9                                         | err:428C9                                         | PASS
+ 81 | consistency                              | column review_status == JSON review_status for every event                                            | rows:0                                            | rows:0                                            | PASS
+ 82 | consistency                              | last decision of each event matches its status                                                        | rows:0                                            | rows:0                                            | PASS
+ 83 | consistency                              | exactly one audit row per human decision                                                              | rows:0                                            | rows:0                                            | PASS
+ 84 | consistency                              | version == 1 + human decisions + ingest updates (a reopen is one ingest update)                       | rows:0                                            | rows:0                                            | PASS
+ 85 | hardening                                | RLS enabled on every radar table                                                                      | rows:0                                            | rows:0                                            | PASS
+ 86 | grants                                   | anon holds NO privilege of any kind on any radar table                                                | rows:0                                            | rows:0                                            | PASS
+ 87 | grants                                   | authenticated holds ONLY SELECT on radar tables (no write-class privilege, independent of RLS)        | rows:0                                            | rows:0                                            | PASS
+ 88 | grants                                   | service_role: never DELETE/TRUNCATE; UPDATE only on venues/parties; no INSERT on events               | rows:0                                            | rows:0                                            | PASS
+ 89 | grants                                   | anon has no USAGE on schema radar; authenticated/service_role do                                      | false|true|true                                   | false|true|true                                   | PASS
+ 90 | hardening                                | no radar table grant to PUBLIC or anon                                                                | rows:0                                            | rows:0                                            | PASS
+ 91 | hardening                                | no radar function executable by PUBLIC (explicit ACL, no default)                                     | rows:0                                            | rows:0                                            | PASS
+ 92 | hardening                                | no INSERT/UPDATE/DELETE policy exists on any radar table                                              | rows:0                                            | rows:0                                            | PASS
+ 93 | hardening                                | migration created no table in public                                                                  | rows:0                                            | rows:0                                            | PASS
+(93 rows)
+
+   summary    
+--------------
+ 93/93 passed
+(1 row)
+
+
+== concurrency: two real sessions
+session1:  {"status": "applied", "version": 2, "event_id": "evt_conc", "review_status": "approved"}  
+session2:  ERROR:  stale version: event is at 2, reviewer saw 1 CONTEXT:  PL/pgSQL function radar.review_event(text,text,text,integer,text) line 56 at RAISE   (waited 1.060367193s on the row lock)
+final: approved v2, decisions=1
+same-id s1:  {"status": "applied", "version": 2, "event_id": "evt_conc2", "review_status": "approved"}  
+same-id s2:  {"status": "duplicate", "version": 2, "event_id": "evt_conc2", "review_status": "approved"} 
+concurrency checks: stale-after-lock=1 same-decision-id-idempotent=1
+
+== effective TABLE privileges (from the catalog; RLS is applied on top, see RLS policies)
+     table_name      |     role      | privileges_siudt 
+---------------------+---------------+------------------
+ audit               | anon          | -
+ audit               | authenticated | S
+ audit               | service_role  | IS
+ decision_rejections | anon          | -
+ decision_rejections | authenticated | S
+ decision_rejections | service_role  | IS
+ decisions           | anon          | -
+ decisions           | authenticated | S
+ decisions           | service_role  | IS
+ events              | anon          | -
+ events              | authenticated | S
+ events              | service_role  | S
+ evidence            | anon          | -
+ evidence            | authenticated | S
+ evidence            | service_role  | IS
+ failures            | anon          | -
+ failures            | authenticated | S
+ failures            | service_role  | IS
+ obs_event           | anon          | -
+ obs_event           | authenticated | S
+ obs_event           | service_role  | IS
+ parties             | anon          | -
+ parties             | authenticated | S
+ parties             | service_role  | ISU
+ venues              | anon          | -
+ venues              | authenticated | S
+ venues              | service_role  | ISU
+(27 rows)
+
+
+== effective FUNCTION execute privileges
+                                                         function                                                         | definer | anon | authenticated | service_role 
+--------------------------------------------------------------------------------------------------------------------------+---------+------+---------------+--------------
+ public.radar_review_event(p_decision_id text, p_event_id text, p_decision text, p_expected_version integer, p_note text) | f       | f    | t             | f
+ radar.backfill_event(p_doc jsonb, p_version integer)                                                                     | t       | f    | f             | t
+ radar.is_admin()                                                                                                         | t       | f    | t             | t
+ radar.is_reviewer()                                                                                                      | t       | f    | t             | t
+ radar.review_event(p_decision_id text, p_event_id text, p_decision text, p_expected_version integer, p_note text)        | t       | f    | t             | f
+ radar.reviewer_role()                                                                                                    | t       | f    | t             | t
+ radar.upsert_event(p_doc jsonb, p_expected_version integer, p_reopen_reason text)                                        | t       | f    | f             | t
+(7 rows)
+
+
+== RLS status and policies
+     table_name      | rls_enabled 
+---------------------+-------------
+ audit               | t
+ decision_rejections | t
+ decisions           | t
+ events              | t
+ evidence            | t
+ failures            | t
+ obs_event           | t
+ parties             | t
+ venues              | t
+(9 rows)
+
+      tablename      |   policyname   |      roles      |  cmd   |        qual         
+---------------------+----------------+-----------------+--------+---------------------
+ audit               | admins_read    | {authenticated} | SELECT | radar.is_admin()
+ decision_rejections | admins_read    | {authenticated} | SELECT | radar.is_admin()
+ decisions           | reviewers_read | {authenticated} | SELECT | radar.is_reviewer()
+ events              | reviewers_read | {authenticated} | SELECT | radar.is_reviewer()
+ evidence            | reviewers_read | {authenticated} | SELECT | radar.is_reviewer()
+ failures            | admins_read    | {authenticated} | SELECT | radar.is_admin()
+ obs_event           | reviewers_read | {authenticated} | SELECT | radar.is_reviewer()
+ parties             | reviewers_read | {authenticated} | SELECT | radar.is_reviewer()
+ venues              | reviewers_read | {authenticated} | SELECT | radar.is_reviewer()
+(9 rows)
+
+
+SUMMARY: sql_tests 93 run, 0 failed; concurrency stale=1 same-id=1

@@ -1,6 +1,6 @@
 # AP-001 Handover — Cotonou Event Radar + Venue Intelligence
 
-> **Updated by AP-001-R2.** Status, evidence and release recommendation: see `AP001_R2_RELEASE_EVIDENCE.md` (recommendation: **HOLD**). The review flow below changed: the shared token was removed; reviewers authenticate (Supabase Auth, mock-tested only) and decisions carry client ids and versions. R1 audits (`AP001_*_AUDIT.md`) describe the pre-remediation state.
+> **Updated by AP-001-R3** — see `AP001_R3_READINESS_REPORT.md` (recommendation: **HOLD**; ready for real project configuration, not for operation). **Updated by AP-001-R2.** Status, evidence and release recommendation: see `AP001_R2_RELEASE_EVIDENCE.md` (recommendation: **HOLD**). The review flow below changed: the shared token was removed; reviewers authenticate (Supabase Auth, mock-tested only) and decisions carry client ids and versions. R1 audits (`AP001_*_AUDIT.md`) describe the pre-remediation state.
 
 Branch (all repos): `claude/ap-001-cotonou-event-venue-radar-kr48v6`. Baseline: `main` @ `bc6433f` (alagbara-intelligence), `6b28678` (pulse-l1).
 
