@@ -5,7 +5,7 @@ def test_stable_id_is_deterministic():
     assert stable_observation_id("https://example.org/a", "X", "Y") == stable_observation_id("https://example.org/a", "X", "Y")
 
 def test_whitespace_normalization():
-    assert normalize_whitespace("  a\\n  b  ") == "a b"
+    assert normalize_whitespace("  a\n  b  ") == "a b"
 
 def test_url_fragment_removed_and_query_preserved():
     assert canonicalize_url("HTTPS://Example.org/a?x=1#section") == "https://example.org/a?x=1"
