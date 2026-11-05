@@ -1,0 +1,20 @@
+$ rm -rf node_modules .next && npm ci
+
+added 133 packages in 9s
+
+$ npm run typecheck
+> tsc --noEmit
+
+exit=0
+
+$ npm run build
+▲ Next.js 16.4.5 (Turbopack)
+⚠ React 18 support is deprecated in Next.js 16 and will be removed in Next.js 17. Please upgrade to React 19. Learn more: https://nextjs.org/docs/messages/react-version
+✓ Compiled successfully in 4.6s
+  Finished TypeScript in 3.6s ...
+✓ Generating static pages using 3 workers (16/16) in 297ms
+
+$ npm audit
+found 0 vulnerabilities
+$ npm audit --omit=dev
+found 0 vulnerabilities

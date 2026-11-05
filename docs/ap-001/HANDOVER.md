@@ -1,5 +1,7 @@
 # AP-001 Handover — Cotonou Event Radar + Venue Intelligence
 
+> **Updated by AP-001-R2.** Status, evidence and release recommendation: see `AP001_R2_RELEASE_EVIDENCE.md` (recommendation: **HOLD**). The review flow below changed: the shared token was removed; reviewers authenticate (Supabase Auth, mock-tested only) and decisions carry client ids and versions. R1 audits (`AP001_*_AUDIT.md`) describe the pre-remediation state.
+
 Branch (all repos): `claude/ap-001-cotonou-event-venue-radar-kr48v6`. Baseline: `main` @ `bc6433f` (alagbara-intelligence), `6b28678` (pulse-l1).
 
 ## Loop (working today, local)
@@ -7,10 +9,10 @@ Branch (all repos): `claude/ap-001-cotonou-event-venue-radar-kr48v6`. Baseline: 
 radar register-source up1 upload "Operator uploads"; radar approve-source up1 --by <human>
 radar ingest-upload up1 poster.png [poster.png.txt sidecar | tesseract if installed]
 radar export-feed --output <pulse-l1>/radar-data/feed.json        # PULSE reads this
-# in pulse-l1:  RADAR_REVIEW_TOKEN=... npm run build && npm start   -> /radar
-radar apply-decisions <pulse-l1>/radar-data/decisions.jsonl       # human approvals flow back
+# in pulse-l1:  npm ci && npm run build && npm start   -> /radar (reviewer sign-in required; see .env.example)
+radar apply-decisions <pulse-l1>/radar-data/decisions/            # directory of <decision_id>.json files
 ```
-Env (PULSE): `RADAR_FEED_PATH`, `RADAR_MEDIA_DIR`, `RADAR_DECISIONS_PATH`, `RADAR_REVIEW_TOKEN` (review disabled if unset).
+Env (PULSE): `RADAR_FEED_PATH`, `RADAR_MEDIA_DIR`, `RADAR_DECISIONS_DIR`, `SUPABASE_URL`, `SUPABASE_ANON_KEY` (auth unconfigured => everything denied). No shared token exists.
 
 ## Limits (not hidden)
 - No OCR engine installed here: text comes from operator sidecar `.txt` (marked `unverified`) or Tesseract when present. Transcription provider is interface-only. OCR/video paths are untested against real posters.
