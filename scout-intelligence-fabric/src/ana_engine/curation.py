@@ -11,10 +11,9 @@ from __future__ import annotations
 
 import json
 import re
-import uuid
 from datetime import date
 
-from radar_contracts import EVENT_CATEGORIES, VENUE_TYPES, ContractError, FieldClaim, Venue, validate_contact, validate_link
+from radar_contracts import EVENT_CATEGORIES, ContractError, FieldClaim, Venue, validate_contact, validate_link
 from radar_contracts import validate_venue
 
 from .pipeline import _party, confidence, find_conflicts, make_start_end, norm_name, resolve_venue
