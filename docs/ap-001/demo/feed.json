@@ -1,0 +1,320 @@
+{
+  "contract_version": "1.1.0",
+  "city": "Cotonou",
+  "timezone": "Africa/Porto-Novo",
+  "generated_at": "2026-11-05T15:38:49.116676+00:00",
+  "approved_only": true,
+  "events": [
+    {
+      "event_id": "evt_9dbaf137a8e9",
+      "title": "NUIT AFRO VOL. 3",
+      "description": null,
+      "start_at": "2026-11-28T22:00:00+01:00",
+      "end_at": "2026-11-29T04:00:00+01:00",
+      "timezone": "Africa/Porto-Novo",
+      "venue_id": "ven_f760020d54e0",
+      "organizer_id": "org_eda8621dab26",
+      "performer_ids": [
+        "dj_1b5a296efd43",
+        "dj_7f1e07971b25",
+        "art_6ce8b4b07fc1"
+      ],
+      "event_category": "club_night",
+      "status": "scheduled",
+      "evidence_references": [
+        "854219fe39180fe6121fa078b1733035bd5d98ac82183cd4281ba50717c54193"
+      ],
+      "confidence": "medium",
+      "review_status": "approved",
+      "city": "Cotonou",
+      "field_claims": [
+        {
+          "field": "start_date",
+          "value": "2026-11-28",
+          "state": "derived",
+          "evidence_ids": [
+            "854219fe39180fe6121fa078b1733035bd5d98ac82183cd4281ba50717c54193"
+          ],
+          "snippet": "SAMEDI 28 NOVEMBRE 2026",
+          "method": "rule:ocr-tesseract"
+        },
+        {
+          "field": "start_time",
+          "value": "22:00",
+          "state": "derived",
+          "evidence_ids": [
+            "854219fe39180fe6121fa078b1733035bd5d98ac82183cd4281ba50717c54193"
+          ],
+          "snippet": "de 22h a 04h",
+          "method": "rule:ocr-tesseract"
+        },
+        {
+          "field": "end_time",
+          "value": "04:00",
+          "state": "derived",
+          "evidence_ids": [
+            "854219fe39180fe6121fa078b1733035bd5d98ac82183cd4281ba50717c54193"
+          ],
+          "snippet": "de 22h a 04h",
+          "method": "rule:ocr-tesseract"
+        },
+        {
+          "field": "district",
+          "value": "Haie Vive",
+          "state": "derived",
+          "evidence_ids": [
+            "854219fe39180fe6121fa078b1733035bd5d98ac82183cd4281ba50717c54193"
+          ],
+          "snippet": "haie vive",
+          "method": "rule:ocr-tesseract"
+        },
+        {
+          "field": "venue",
+          "value": "Club Exemple",
+          "state": "derived",
+          "evidence_ids": [
+            "854219fe39180fe6121fa078b1733035bd5d98ac82183cd4281ba50717c54193"
+          ],
+          "snippet": "Lieu : Club Exemple, Haie Vive",
+          "method": "rule:ocr-tesseract"
+        },
+        {
+          "field": "organizer",
+          "value": "STUDIO FICTIF",
+          "state": "derived",
+          "evidence_ids": [
+            "854219fe39180fe6121fa078b1733035bd5d98ac82183cd4281ba50717c54193"
+          ],
+          "snippet": "STUDIO FICTIF PRÉSENTE",
+          "method": "rule:ocr-tesseract"
+        },
+        {
+          "field": "performer",
+          "value": "DJ ALPHA",
+          "state": "derived",
+          "evidence_ids": [
+            "854219fe39180fe6121fa078b1733035bd5d98ac82183cd4281ba50717c54193"
+          ],
+          "snippet": "DJ ALPHA ° DJ BETA",
+          "method": "rule:ocr-tesseract:dj"
+        },
+        {
+          "field": "performer",
+          "value": "DJ BETA",
+          "state": "derived",
+          "evidence_ids": [
+            "854219fe39180fe6121fa078b1733035bd5d98ac82183cd4281ba50717c54193"
+          ],
+          "snippet": "DJ ALPHA ° DJ BETA",
+          "method": "rule:ocr-tesseract:dj"
+        },
+        {
+          "field": "performer",
+          "value": "Artiste Demo",
+          "state": "derived",
+          "evidence_ids": [
+            "854219fe39180fe6121fa078b1733035bd5d98ac82183cd4281ba50717c54193"
+          ],
+          "snippet": "Live : Artiste Demo",
+          "method": "rule:ocr-tesseract:artist"
+        },
+        {
+          "field": "ticket",
+          "value": "3000 fcfa",
+          "state": "derived",
+          "evidence_ids": [
+            "854219fe39180fe6121fa078b1733035bd5d98ac82183cd4281ba50717c54193"
+          ],
+          "snippet": "3000 fcfa",
+          "method": "rule:ocr-tesseract"
+        },
+        {
+          "field": "contact",
+          "value": "+229 01 90 00 00 00",
+          "state": "derived",
+          "evidence_ids": [
+            "854219fe39180fe6121fa078b1733035bd5d98ac82183cd4281ba50717c54193"
+          ],
+          "snippet": "+229 01 90 00 00 00",
+          "method": "rule:ocr-tesseract"
+        },
+        {
+          "field": "title",
+          "value": "NUIT AFRO",
+          "state": "derived",
+          "evidence_ids": [
+            "854219fe39180fe6121fa078b1733035bd5d98ac82183cd4281ba50717c54193"
+          ],
+          "snippet": "NUIT AFRO",
+          "method": "rule:ocr-tesseract"
+        },
+        {
+          "field": "category",
+          "value": "club_night",
+          "state": "derived",
+          "evidence_ids": [
+            "854219fe39180fe6121fa078b1733035bd5d98ac82183cd4281ba50717c54193"
+          ],
+          "snippet": "nuit",
+          "method": "rule:ocr-tesseract"
+        },
+        {
+          "field": "title",
+          "value": "NUIT AFRO VOL. 3",
+          "state": "observed",
+          "evidence_ids": [
+            "854219fe39180fe6121fa078b1733035bd5d98ac82183cd4281ba50717c54193"
+          ],
+          "snippet": "checked against the original poster",
+          "method": "human:correction"
+        }
+      ],
+      "unknown_fields": [],
+      "contradictions": [],
+      "duplicate_candidates": [],
+      "contract_version": "1.1.0",
+      "version": 3,
+      "venue": {
+        "venue_id": "ven_f760020d54e0",
+        "name": "Club Exemple",
+        "district": "Haie Vive",
+        "address": null,
+        "latitude": null,
+        "longitude": null,
+        "venue_type": null,
+        "source_references": [
+          "854219fe39180fe6121fa078b1733035bd5d98ac82183cd4281ba50717c54193"
+        ],
+        "verification_status": "unverified",
+        "city": "Cotonou",
+        "aliases": [],
+        "contacts": [],
+        "links": [],
+        "verification_note": null,
+        "verified_at": null
+      },
+      "organizer": {
+        "party_id": "org_eda8621dab26",
+        "name": "STUDIO FICTIF",
+        "kind": "organization",
+        "role": "organizer",
+        "evidence_ids": [
+          "854219fe39180fe6121fa078b1733035bd5d98ac82183cd4281ba50717c54193"
+        ],
+        "identity_verified": false,
+        "possible_same_as": [
+          "org_eda8621dab26"
+        ]
+      },
+      "performers": [
+        {
+          "party_id": "dj_1b5a296efd43",
+          "name": "DJ ALPHA",
+          "kind": "person",
+          "role": "dj",
+          "evidence_ids": [
+            "854219fe39180fe6121fa078b1733035bd5d98ac82183cd4281ba50717c54193"
+          ],
+          "identity_verified": false,
+          "possible_same_as": [
+            "dj_1b5a296efd43"
+          ]
+        },
+        {
+          "party_id": "dj_7f1e07971b25",
+          "name": "DJ BETA",
+          "kind": "person",
+          "role": "dj",
+          "evidence_ids": [
+            "854219fe39180fe6121fa078b1733035bd5d98ac82183cd4281ba50717c54193"
+          ],
+          "identity_verified": false,
+          "possible_same_as": [
+            "dj_7f1e07971b25"
+          ]
+        },
+        {
+          "party_id": "art_6ce8b4b07fc1",
+          "name": "Artiste Demo",
+          "kind": "person",
+          "role": "artist",
+          "evidence_ids": [
+            "854219fe39180fe6121fa078b1733035bd5d98ac82183cd4281ba50717c54193"
+          ],
+          "identity_verified": false,
+          "possible_same_as": [
+            "art_6ce8b4b07fc1"
+          ]
+        }
+      ],
+      "evidence": [
+        {
+          "observation_id": "854219fe39180fe6121fa078b1733035bd5d98ac82183cd4281ba50717c54193",
+          "source_id": "demo-uploads",
+          "source_platform": "upload",
+          "source_url": null,
+          "collection_method": "operator_upload",
+          "collected_at": "2026-11-05T15:38:47.993968+00:00",
+          "content_hash": "f0f9afc476a91ea7aad268dae95bccf25fe502def6b1961f52e53bff3183335c",
+          "evidence_state": "unverified",
+          "raw_media_reference": "media/f0f9afc476a91ea7aad268dae95bccf25fe502def6b1961f52e53bff3183335c.png",
+          "extraction_version": "scout-intake-1.0.0",
+          "media_type": "image",
+          "original_filename": "p1_nuit_afro.png",
+          "metadata": {
+            "mime": "image/png",
+            "bytes": 465598,
+            "context_verified": false,
+            "permission_note": "SYNTHETIC DEMO: fictional poster, no real organizer or venue",
+            "via": "operator_console",
+            "original_name": "p1_nuit_afro.png",
+            "dimensions": {
+              "width": 900,
+              "height": 1260
+            }
+          }
+        }
+      ],
+      "review": {
+        "status": "approved",
+        "decided_at": "2026-11-05T15:38:48.784014+00:00",
+        "human_corrected_fields": [
+          "title"
+        ]
+      }
+    }
+  ],
+  "venues": [
+    {
+      "venue_id": "ven_f760020d54e0",
+      "name": "Club Exemple",
+      "district": "Haie Vive",
+      "address": null,
+      "latitude": null,
+      "longitude": null,
+      "venue_type": null,
+      "source_references": [
+        "854219fe39180fe6121fa078b1733035bd5d98ac82183cd4281ba50717c54193"
+      ],
+      "verification_status": "unverified",
+      "city": "Cotonou",
+      "aliases": [],
+      "contacts": [],
+      "links": [],
+      "verification_note": null,
+      "verified_at": null,
+      "event_ids": [
+        "evt_9dbaf137a8e9"
+      ],
+      "last_observed_at": "2026-11-05T15:38:47.993968+00:00",
+      "last_event_date": "2026-11-28"
+    }
+  ],
+  "counts": {
+    "events": 1,
+    "venues": 1
+  },
+  "review": {
+    "pending": []
+  }
+}

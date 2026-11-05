@@ -40,12 +40,13 @@ cmd_up() {
   IDP_URL="${SUPABASE_URL:-}"; IDP_KEY="${SUPABASE_ANON_KEY:-}"
   if [ -z "$IDP_URL" ]; then
     warn "No SUPABASE_URL set: starting the LOCAL DEMO identity provider (a mock). Reviewer sign-in on PULSE: rev@example.test / code 123456. For anything real, export SUPABASE_URL and SUPABASE_ANON_KEY instead."
-    (cd "$PULSE_DIR" && nohup node scripts/radar/mock-auth-server.mjs "$IDP_PORT" >"$RUN/idp.log" 2>&1 & echo $! >"$RUN/idp.pid")
+    ( cd "$PULSE_DIR" && exec nohup node scripts/radar/mock-auth-server.mjs "$IDP_PORT" >"$RUN/idp.log" 2>&1 </dev/null ) & echo $! >"$RUN/idp.pid"
     IDP_URL="http://127.0.0.1:$IDP_PORT"; IDP_KEY="test-anon-key-placeholder"
   fi
-  nohup "$RADAR" --data "$DATA" serve --feed "$FEED" --port "$OP_PORT" --key-file "$RUN/operator.key" --pulse-url "http://127.0.0.1:$PULSE_PORT" >"$RUN/operator.log" 2>&1 & echo $! >"$RUN/operator.pid"
-  (cd "$PULSE_DIR" && RADAR_FEED_PATH="$FEED" RADAR_MEDIA_DIR="$DATA/media" RADAR_DECISIONS_DIR="$STATE/decisions" SUPABASE_URL="$IDP_URL" SUPABASE_ANON_KEY="$IDP_KEY" \
-     nohup node node_modules/next/dist/bin/next start -p "$PULSE_PORT" >"$RUN/pulse.log" 2>&1 & echo $! >"$RUN/pulse.pid")
+  # `exec` inside a redirected subshell: the recorded PID is the service itself and no file descriptor leaks to the caller
+  ( exec nohup "$RADAR" --data "$DATA" serve --feed "$FEED" --port "$OP_PORT" --key-file "$RUN/operator.key" --pulse-url "http://127.0.0.1:$PULSE_PORT" >"$RUN/operator.log" 2>&1 </dev/null ) & echo $! >"$RUN/operator.pid"
+  ( cd "$PULSE_DIR" && export RADAR_FEED_PATH="$FEED" RADAR_MEDIA_DIR="$DATA/media" RADAR_DECISIONS_DIR="$STATE/decisions" SUPABASE_URL="$IDP_URL" SUPABASE_ANON_KEY="$IDP_KEY" \
+      && exec nohup node node_modules/next/dist/bin/next start -p "$PULSE_PORT" >"$RUN/pulse.log" 2>&1 </dev/null ) & echo $! >"$RUN/pulse.pid"
   for i in $(seq 1 60); do curl -fs "http://127.0.0.1:$OP_PORT/health" >/dev/null 2>&1 && curl -s -o /dev/null "http://127.0.0.1:$PULSE_PORT/radar/signin" && break; sleep 0.5; done
   say "Operator console : http://127.0.0.1:$OP_PORT/      (your name + launch key: $(cat "$RUN/operator.key"))"
   say "PULSE Radar      : http://127.0.0.1:$PULSE_PORT/radar   (reviewer sign-in; see note above)"

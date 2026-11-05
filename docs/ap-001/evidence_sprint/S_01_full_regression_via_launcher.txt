@@ -1,0 +1,128 @@
+== Python (SCOUT, ANA, operator console, ops, PostgreSQL parity)
+........................................................................ [ 63%]
+..........................................                               [100%]
+114 passed in 15.18s
+== PostgreSQL migration suite + mutation check (disposable local database)
+
+SUMMARY: sql_tests 93 run, 0 failed; concurrency stale=1 same-id=1
+9/9 mutants killed
+== PULSE: install, typecheck, build, audit
+⚠ React 18 support is deprecated in Next.js 16 and will be removed in Next.js 17. Please upgrade to React 19. Learn more: https://nextjs.org/docs/messages/react-version
+Turbopack build encountered 4 warnings:
+./app/api/radar/media/[name]/route.ts:28:40
+Warning: Dynamic filesystem access causes tracing of the whole project
+  26 | ...(!st.isFile()) return new Response("Not found", { status: 404, headers: HEADERS });
+  27 | ...(st.size > MAX_BYTES) return new Response("Too large", { status: 413, headers: HEADERS });
+> 28 | ...urn new Response(Readable.toWeb(createReadStream(file)) as ReadableStream, {
+     |                                    ^^^^^^^^^^^^^^^^^^^^^^
+  29 | ...eaders: { ...HEADERS, "content-type": TYPES[m[2]], "content-length": String(st.size) }
+  30 | ...
+  31 | ...ch {
+
+Static analysis determined that this filesystem access causes the whole project to be traced and included in the output.
+This is usually unintentional and leads to all source files (including the public folder) to be deployed as part of the server code.
+This can slow down deployments or lead to failures when size limits are exceeded.
+To resolve this, you can
+- make sure the path is statically scoped to some subfolder, for example path.join(process.cwd(), 'data', bar), or
+- only use them in development, or
+- opt out by adding an ignore comment to the highlighted call: fs.createReadStream(/*turbopackIgnore: true*/ ...), or
+- remove them.
+
+Import trace:
+  App Route:
+    ./app/api/radar/media/[name]/route.ts
+    ./lib/radar/feed.ts
+    ./app/api/radar/review/route.ts
+
+
+./app/api/radar/media/[name]/route.ts:25:22
+Warning: Dynamic filesystem access causes tracing of the whole project
+  23 |   const file = path.join(process.env.RADAR_MEDIA_DIR ?? path.join(process.cwd(), "radar-da...
+  24 |   try {
+> 25 |     const st = await fs.stat(file);
+     |                      ^^^^^^^^^^^^^
+  26 |     if (!st.isFile()) return new Response("Not found", { status: 404, headers: HEADERS });
+  27 |     if (st.size > MAX_BYTES) return new Response("Too large", { status: 413, headers: HEAD...
+  28 |     return new Response(Readable.toWeb(createReadStream(file)) as ReadableStream, {
+
+Static analysis determined that this filesystem access causes the whole project to be traced and included in the output.
+This is usually unintentional and leads to all source files (including the public folder) to be deployed as part of the server code.
+This can slow down deployments or lead to failures when size limits are exceeded.
+To resolve this, you can
+- make sure the path is statically scoped to some subfolder, for example path.join(process.cwd(), 'data', bar), or
+- only use them in development, or
+- opt out by adding an ignore comment to the highlighted call: fs.stat(/*turbopackIgnore: true*/ ...), or
+- remove them.
+
+Import trace:
+  App Route:
+    ./app/api/radar/media/[name]/route.ts
+    ./lib/radar/feed.ts
+    ./app/api/radar/review/route.ts
+
+
+./app/api/radar/media/[name]/route.ts:23:16
+Warning: Dynamic filesystem access causes tracing of the whole project
+  21 | ...aded.status === "ok" && loaded.feed.events.some((e) => e.evidence.some((x) => x.raw_med...
+  22 | ...rn new Response("Not found", { status: 404, headers: HEADERS });
+> 23 | ...n(process.env.RADAR_MEDIA_DIR ?? path.join(process.cwd(), "radar-data", "media"), param...
+     |    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  24 | ...
+  25 | ....stat(file);
+  26 | ...eturn new Response("Not found", { status: 404, headers: HEADERS });
+
+Static analysis determined that this filesystem access causes the whole project to be traced and included in the output.
+This is usually unintentional and leads to all source files (including the public folder) to be deployed as part of the server code.
+This can slow down deployments or lead to failures when size limits are exceeded.
+To resolve this, you can
+- make sure the path is statically scoped to some subfolder, for example path.join(process.cwd(), 'data', bar), or
+- only use them in development, or
+- opt out by adding an ignore comment to the highlighted call: path.join(/*turbopackIgnore: true*/ ...), or
+- remove them.
+
+Import trace:
+  App Route:
+    ./app/api/radar/media/[name]/route.ts
+    ./lib/radar/feed.ts
+    ./app/api/radar/review/route.ts
+
+
+./lib/radar/feed.ts:62:17
+Warning: Dynamic filesystem access causes tracing of the whole project
+  60 |   let raw: string;
+  61 |   try {
+> 62 |     raw = await fs.readFile(feedPath(), "utf8");
+     |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  63 |   } catch (e) {
+  64 |     if ((e as NodeJS.ErrnoException).code === "ENOENT") return { status: "missing" };
+  65 |     console.error(JSON.stringify({ event: "radar_feed_unreadable", code: (e as NodeJS.Errn...
+
+Static analysis determined that this filesystem access causes the whole project to be traced and included in the output.
+This is usually unintentional and leads to all source files (including the public folder) to be deployed as part of the server code.
+This can slow down deployments or lead to failures when size limits are exceeded.
+To resolve this, you can
+- make sure the path is statically scoped to some subfolder, for example path.join(process.cwd(), 'data', bar), or
+- only use them in development, or
+- opt out by adding an ignore comment to the highlighted call: fs.readFile(/*turbopackIgnore: true*/ ...), or
+- remove them.
+
+Import traces:
+  App Route:
+    ./lib/radar/feed.ts
+    ./app/api/radar/review/route.ts
+
+  Server Component:
+    ./lib/radar/feed.ts
+    ./app/radar/(app)/venues/[id]/page.tsx
+
+
+found 0 vulnerabilities
+== PULSE: access matrix
+133/133 passed; mock IdP calls: 74
+== PULSE: cross-repo end-to-end
+24/24 passed
+== PULSE: UI (real browser)
+47/47 passed
+== PULSE: environment / secret boundary
+12/13 passed
+exit=1
