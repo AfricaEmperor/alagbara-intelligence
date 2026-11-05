@@ -1,6 +1,7 @@
 from scout_fabric.acquire import _VisibleText
 from scout_fabric.normalize import normalize_whitespace
 
+
 def test_html_parser_extracts_title_and_visible_text():
     parser = _VisibleText()
     parser.feed("<html><head><title>Example page</title><script>secret()</script></head><body><p>Hello <b>world</b></p></body></html>")

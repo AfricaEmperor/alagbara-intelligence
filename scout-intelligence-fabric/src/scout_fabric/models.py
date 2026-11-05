@@ -1,6 +1,6 @@
 """Canonical data contracts. Keep observations separate from interpretations."""
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Literal
 from urllib.parse import urlparse
 
@@ -36,4 +36,4 @@ class Observation:
         return asdict(self)
 
 def utc_now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()

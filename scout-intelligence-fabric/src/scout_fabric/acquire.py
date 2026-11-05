@@ -5,7 +5,7 @@ sources you are authorized to access and honor their terms and rate limits.
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from html.parser import HTMLParser
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
@@ -77,7 +77,7 @@ def acquire_public_page(url: str) -> Observation:
     parser.feed(html)
     title = normalize_whitespace(" ".join(parser.title_parts)) or final_url
     text = normalize_whitespace(" ".join(parser.text_parts))
-    captured_at = datetime.now(timezone.utc).isoformat()
+    captured_at = datetime.now(UTC).isoformat()
     observation_id = stable_observation_id(final_url, title, text[:500])
     provenance = Provenance(
         source_url=final_url,
