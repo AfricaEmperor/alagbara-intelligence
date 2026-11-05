@@ -83,3 +83,13 @@ class ChainProvider:
             if last.text and last.text.strip():
                 return last
         return last
+
+
+class StaticTextProvider:
+    """Text supplied by a human (pasted transcription). Always `unverified`: nothing checked it against the image."""
+
+    def __init__(self, text: str, method: str = "operator-transcription"):
+        self.text, self.method = text, method
+
+    def extract(self, media_path: Path, media_type: str) -> TextResult:
+        return TextResult(self.text, self.method, "unverified", "typed by an operator")

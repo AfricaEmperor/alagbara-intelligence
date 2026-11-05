@@ -11,6 +11,7 @@ from pathlib import Path
 from scout_fabric.sources import Source, SourceRegistry, UnauthorizedSource
 from scout_fabric.text_providers import ChainProvider, SidecarTextProvider, TesseractProvider
 
+from . import ops
 from .pg_sync import backfill_sql, canonical, diff, pg_canonical, psql_runner
 from .pipeline import run_upload
 from .store import DecisionConflict, RadarStore, StaleWrite
@@ -43,6 +44,12 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--decision-id", default=None, help="idempotency key (generated and printed if omitted)")
     s.add_argument("--expected-version", type=int, default=None, help="reject if the event changed since you read it")
     s = sub.add_parser("apply-decisions"); s.add_argument("file")
+    s = sub.add_parser("backup", help="consistent backup of database + media + manifest"); s.add_argument("--out", required=True)
+    s = sub.add_parser("verify-backup"); s.add_argument("path")
+    s = sub.add_parser("restore", help="restore a verified backup (existing data moved aside, only with --force)"); s.add_argument("path"); s.add_argument("--force", action="store_true")
+    sub.add_parser("verify", help="read-only integrity check of the store (media hashes, links, decisions)")
+    s = sub.add_parser("ingest-manifest", help="batch ingest from a CSV manifest (permission_note required per poster)")
+    s.add_argument("manifest"); s.add_argument("--root", required=True); s.add_argument("--report", required=True)
     s = sub.add_parser("pg-backfill-sql", help="GENERATE (never run) an idempotent SQLite->PostgreSQL backfill script")
     s.add_argument("--output", required=True)
     s = sub.add_parser("pg-reconcile", help="compare this SQLite store with PostgreSQL via a read-only psql command")
@@ -52,6 +59,16 @@ def main(argv: list[str] | None = None) -> int:
 
     root = Path(a.data)
     registry = SourceRegistry(root / "sources.json")
+    if a.cmd == "backup":
+        m = ops.backup(root, Path(a.out)); print(json.dumps({"backup": a.out, "files": len(m["files"]), "media_files": m["media_files"]})); return 0
+    if a.cmd == "verify-backup":
+        pr = ops.verify_backup(Path(a.path)); print(json.dumps({"ok": not pr, "problems": pr})); return 0 if not pr else 5
+    if a.cmd == "restore":
+        try:
+            aside = ops.restore(Path(a.path), root, a.force)
+        except (FileExistsError, ValueError) as exc:
+            print(f"refused: {exc}", file=sys.stderr); return 5
+        print(json.dumps({"restored": True, "previous_data_moved_to": str(aside) if aside else None})); return 0
     if a.cmd == "register-source":
         registry.register(Source(a.source_id, a.platform, a.label)); print("registered (pending approval)")
         return 0
@@ -77,6 +94,10 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"rejected: {exc}", file=sys.stderr); return 3
             print(ev.event_id, "->", ev.review_status, f"({status}, decision_id={did})")
             return 0
+        if a.cmd == "verify":
+            res = ops.verify_store(store); print(json.dumps(res, indent=2)); return 0 if res["ok"] else 6
+        if a.cmd == "ingest-manifest":
+            print(json.dumps(ops.ingest_manifest(store, registry, Path(a.manifest), Path(a.root), Path(a.report)))); return 0
         if a.cmd == "pg-backfill-sql":
             write_atomic(Path(a.output), backfill_sql(store)); print("wrote", a.output); return 0
         if a.cmd == "pg-reconcile":
