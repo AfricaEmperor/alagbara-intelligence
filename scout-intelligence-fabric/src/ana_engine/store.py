@@ -367,7 +367,8 @@ class RadarStore:
             d["venue"] = public_venue(ven) if ven else None
             d["organizer"] = parties[ev.organizer_id].to_dict() if ev.organizer_id in parties else None
             d["performers"] = [parties[p].to_dict() for p in ev.performer_ids if p in parties]
-            d["evidence"] = [evidence[r] for r in ev.evidence_references if r in evidence]
+            d["evidence"] = [{**evidence[r], "metadata": {k: v for k, v in evidence[r].get("metadata", {}).items() if k != "operator"}}
+                             for r in ev.evidence_references if r in evidence]          # who uploaded stays in the audit trail only
             for c in d["field_claims"]:                      # no reviewer identity in the feed
                 if c["method"].startswith("human:"):
                     c["method"] = "human:correction"

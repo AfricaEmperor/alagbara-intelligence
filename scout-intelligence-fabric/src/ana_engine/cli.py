@@ -50,6 +50,10 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("verify", help="read-only integrity check of the store (media hashes, links, decisions)")
     s = sub.add_parser("ingest-manifest", help="batch ingest from a CSV manifest (permission_note required per poster)")
     s.add_argument("manifest"); s.add_argument("--root", required=True); s.add_argument("--report", required=True)
+    s = sub.add_parser("serve", help="start the local operator console (loopback only)")
+    s.add_argument("--port", type=int, default=8750); s.add_argument("--feed", required=True, help="where Publish writes the approved feed")
+    s.add_argument("--key", default=None, help="launch key (default: random, printed once)"); s.add_argument("--key-file", default=None)
+    s.add_argument("--pulse-url", default=None)
     s = sub.add_parser("pg-backfill-sql", help="GENERATE (never run) an idempotent SQLite->PostgreSQL backfill script")
     s.add_argument("--output", required=True)
     s = sub.add_parser("pg-reconcile", help="compare this SQLite store with PostgreSQL via a read-only psql command")
@@ -59,6 +63,18 @@ def main(argv: list[str] | None = None) -> int:
 
     root = Path(a.data)
     registry = SourceRegistry(root / "sources.json")
+    if a.cmd == "serve":
+        from .operator_app import OperatorApp, run_server
+        app = OperatorApp(root, Path(a.feed), a.key or os.environ.get("RADAR_OPERATOR_KEY"), a.pulse_url)
+        if a.key_file:
+            kf = Path(a.key_file); kf.parent.mkdir(parents=True, exist_ok=True); kf.write_text(app.key); os.chmod(kf, 0o600)
+        srv = run_server(app, "127.0.0.1", a.port)
+        print(f"AP-001 operator console: http://127.0.0.1:{srv.server_address[1]}/  (loopback only)\nLaunch key: {app.key}\nData: {root.resolve()}  Feed: {Path(a.feed).resolve()}", flush=True)
+        try:
+            srv.serve_forever()
+        except KeyboardInterrupt:
+            print("stopped")
+        return 0
     if a.cmd == "backup":
         m = ops.backup(root, Path(a.out)); print(json.dumps({"backup": a.out, "files": len(m["files"]), "media_files": m["media_files"]})); return 0
     if a.cmd == "verify-backup":
