@@ -182,7 +182,10 @@ def test_apply_decisions_directory_replay_stale_and_invalid(store, registry, pos
     first = store.apply_decisions(d)
     assert first == {"applied": 1, "skipped_duplicate": 0, "rejected": 3, "stale": 1}, first
     assert store.get_event(eid).review_status == "approved"
-    assert store.apply_decisions(d)["applied"] == 0                       # replay of the whole directory
+    n_audit = len(store.audit_log())
+    again = store.apply_decisions(d)                                       # replay of the whole directory
+    assert again["applied"] == 0 and again["stale"] == 0 and again["rejected"] == 1   # only the unparseable file recurs
+    assert len(store.audit_log()) == n_audit + 1                           # ...and it is the only new audit row
     assert [h["decision_id"] for h in store.decisions(eid)] == [D1]
     assert_consistent(store, eid)
 
@@ -276,3 +279,21 @@ def test_ingestion_holding_write_lock_forces_concurrent_approval_to_be_stale(tmp
     ev = s0.get_event(eid)
     assert ev.review_status == "pending" and len(ev.evidence_references) == 2 and s0.decisions(eid) == []
     assert not [a for a in s0.audit_log() if a["action"] == "review:approve"]
+
+
+def test_feed_export_is_atomic_and_interruption_keeps_previous_feed(tmp_path, monkeypatch):
+    from ana_engine import cli
+    dest = tmp_path / "out" / "feed.json"
+    cli.write_atomic(dest, '{"v": 1}')
+    assert json.loads(dest.read_text()) == {"v": 1}
+    real_replace = cli.os.replace
+
+    def crash(*a, **k):
+        raise OSError("simulated crash before rename")
+
+    monkeypatch.setattr(cli.os, "replace", crash)
+    with pytest.raises(OSError):
+        cli.write_atomic(dest, '{"v": 2, "truncated"')
+    monkeypatch.setattr(cli.os, "replace", real_replace)
+    assert json.loads(dest.read_text()) == {"v": 1}                 # previous complete feed untouched
+    assert [p.name for p in dest.parent.iterdir()] == ["feed.json"]  # no stray temp file

@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS event_versions(event_id TEXT PRIMARY KEY, version INT
 CREATE TABLE IF NOT EXISTS decisions(decision_id TEXT PRIMARY KEY, event_id TEXT NOT NULL, decision TEXT NOT NULL,
   reviewer TEXT NOT NULL, note TEXT, version_seen INTEGER, version_after INTEGER, resulting_status TEXT,
   kind TEXT NOT NULL DEFAULT 'human', at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS decision_rejections(decision_id TEXT PRIMARY KEY, reason TEXT NOT NULL, at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS applied_decisions(decision_id TEXT PRIMARY KEY, applied_at TEXT);
 CREATE TABLE IF NOT EXISTS failures(id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT, source_id TEXT,
   reason TEXT, alternative TEXT);
@@ -298,6 +299,10 @@ class RadarStore:
                 self.audit("system", "decision_rejected", name, {"error": "JSONDecodeError"})
         parsed.sort(key=lambda t: (str(t[1].get("decided_at", "")) if isinstance(t[1], dict) else "", t[0]))
         for name, d in parsed:
+            did = str(d.get("decision_id", "")) if isinstance(d, dict) else ""
+            if did and self.db.execute("SELECT 1 FROM decision_rejections WHERE decision_id=?", (did,)).fetchone():
+                out["skipped_duplicate"] += 1          # already rejected once: no second count, no second audit row
+                continue
             try:
                 if "version_seen" not in d:
                     raise ValueError("version_seen is required")
@@ -306,12 +311,18 @@ class RadarStore:
                 out["applied" if status == "applied" else "skipped_duplicate"] += 1
             except StaleWrite as exc:
                 out["stale"] += 1
-                self.audit("system", "decision_rejected_stale", str(d.get("decision_id", name)), {"error": str(exc)})
-            except (KeyError, ValueError, PermissionError, TypeError, AttributeError) as exc:
+                self._reject(did or name, "decision_rejected_stale", str(exc))
+            except (KeyError, ValueError, PermissionError, TypeError, AttributeError, DecisionConflict) as exc:
                 out["rejected"] += 1
-                self.audit("system", "decision_rejected", str(d.get("decision_id", name)) if isinstance(d, dict) else name,
-                           {"error": type(exc).__name__})
+                self._reject(did or name, "decision_rejected", type(exc).__name__)
         return out
+
+    def _reject(self, key: str, action: str, reason: str) -> None:
+        """Record a rejected decision once (keyed by decision_id) with one audit row."""
+        with self.transaction():
+            cur = self.db.execute("INSERT OR IGNORE INTO decision_rejections VALUES(?,?,?)", (key, reason, now_iso()))
+            if cur.rowcount == 1:
+                self.audit("system", action, key, {"error": reason})
 
     # ---- feed for PULSE --------------------------------------------------------------------
     def export_feed(self, generated_at: str | None = None) -> dict[str, Any]:

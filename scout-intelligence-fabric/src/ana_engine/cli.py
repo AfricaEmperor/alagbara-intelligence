@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import uuid
 from pathlib import Path
@@ -12,6 +13,21 @@ from scout_fabric.text_providers import ChainProvider, SidecarTextProvider, Tess
 
 from .pipeline import run_upload
 from .store import DecisionConflict, RadarStore, StaleWrite
+
+
+def write_atomic(dest: Path, text: str) -> None:
+    """Write-then-rename so readers (PULSE) see either the complete old feed or the complete new one,
+    never a truncated file, even if the process dies mid-write."""
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    tmp = dest.with_name(f".{dest.name}.{os.getpid()}.tmp")
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            f.write(text)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, dest)
+    finally:
+        tmp.unlink(missing_ok=True)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -60,7 +76,11 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(store.apply_decisions(Path(a.file)))); return 0
         if a.cmd == "export-feed":
             out = json.dumps(store.export_feed(), indent=2, ensure_ascii=False)
-            (print(out) if a.output == "-" else Path(a.output).write_text(out)); return 0
+            if a.output == "-":
+                print(out)
+            else:
+                write_atomic(Path(a.output), out)
+            return 0
     finally:
         store.close()
     return 1
