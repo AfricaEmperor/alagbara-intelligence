@@ -26,12 +26,11 @@ WEEKDAYS = ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanc
 DISTRICTS = ("haie vive", "fidjrosse", "akpakpa", "cadjehoun", "ganhi", "zogbo", "gbegamey",
              "jonquet", "sainte rita", "ste rita", "agla", "menontin", "godomey", "calavi",
              "cotonou centre", "placodji", "vodje", "togoudo", "saint michel", "st michel")
-CATEGORIES = {
-    "afrobeats": "club_night", "amapiano": "club_night", "soiree": "club_night", "night": "club_night",
-    "clubbing": "club_night", "dj set": "club_night", "concert": "concert", "live": "concert",
-    "showcase": "concert", "festival": "festival", "brunch": "brunch", "karaoke": "karaoke",
-    "after work": "afterwork", "afterwork": "afterwork", "pool party": "pool_party",
-    "stand-up": "comedy", "comedy": "comedy",
+CATEGORIES = {   # ordered: most specific first; the generic "live"/"concert" words are last
+    "brunch": "brunch", "karaoke": "karaoke", "stand-up": "comedy", "comedy": "comedy", "festival": "festival",
+    "pool party": "pool_party", "after work": "afterwork", "afterwork": "afterwork",
+    "afrobeats": "club_night", "amapiano": "club_night", "nuit": "club_night", "soiree": "club_night", "night": "club_night",
+    "clubbing": "club_night", "dj set": "club_night", "concert": "concert", "showcase": "concert", "live": "concert",
 }
 VENUE_TRIGGERS = r"(?:lieu|venue|location|adresse|@|au|chez|at)\s*[:\-]?\s*"
 ORG_TRIGGERS = r"\b(?:organis[ée]e?\s+par|pr[ée]sent[ée]e?\s+par|presented\s+by|une\s+production|organi[sz]ed\s+by)\b"
@@ -91,6 +90,9 @@ def extract_event(text: str, observation_id: str, text_state: str = "derived",
             out.notes.append(f"weekday '{wd}' stated without a calendar date; date left unknown")
 
     # ---- times ------------------------------------------------------------------------------
+    # OCR often reads 0 as O/o and 1 as I/l inside a time like "O4H" / "2lh": repair only when attached to a digit + h
+    joined = re.sub(r"\b[oO](?=\d\s*h)", "0", joined)
+    joined = re.sub(r"(?<=\d)[oO](?=\s*h\b)", "0", joined)
     t_re = r"(\d{1,2})\s*(?:h|:)\s*(\d{2})?"
     rng = re.search(rf"(?:de|from)?\s*{t_re}\s*(?:a|à|to|-|–)\s*{t_re}", joined.replace("à", "a"))
     start_t = end_t = None
@@ -139,6 +141,11 @@ def extract_event(text: str, observation_id: str, text_state: str = "derived",
     # ---- organizer / promoter (kept separate from performers) -----------------------------
     org = None
     for ln in lines:
+        mp = re.match(r"^\s*([A-ZÀ-Ý][\wÀ-ÿ&' .-]{2,40}?)\s+pr[ée]sente(?:nt)?\s*$", ln, re.I)
+        if mp:
+            org = (mp[1].strip(" .-"), ln)
+            break
+    for ln in ([] if org else lines):
         m = re.search(ORG_TRIGGERS + r"\s*[:\-]?\s*([A-Za-zÀ-ÿ0-9&' ._]{2,40})", ln, re.IGNORECASE)
         if m and not re.match(r"\s*dj\b", m[1], re.IGNORECASE):
             org = (m[1].strip(" .-"), ln)

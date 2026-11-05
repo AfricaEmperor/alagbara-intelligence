@@ -12,7 +12,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from typing import Any, Literal
 
-CONTRACT_VERSION = "1.0.0"
+CONTRACT_VERSION = "1.1.0"   # 1.1.0: additive (venue contacts/links/verification note, corrections, review block)
 TIMEZONE = "Africa/Porto-Novo"
 CITY = "Cotonou"
 
@@ -21,6 +21,12 @@ EVIDENCE_STATES = ("observed", "derived", "unverified", "unknown")
 REVIEW_STATUSES = ("pending", "approved", "rejected", "correction_requested")
 VERIFICATION_STATUSES = ("unverified", "candidate", "verified")
 EVENT_STATUSES = ("scheduled", "cancelled", "past", "unknown")
+EVENT_CATEGORIES = ("club_night", "concert", "festival", "brunch", "karaoke", "afterwork", "pool_party", "comedy", "other")
+VENUE_TYPES = ("club", "bar", "lounge", "restaurant", "hotel", "cultural_center", "beach_venue", "outdoor", "other")
+LINK_KINDS = {"facebook": ("facebook.com", "fb.com"), "instagram": ("instagram.com",), "tiktok": ("tiktok.com",),
+              "x": ("x.com", "twitter.com"), "youtube": ("youtube.com", "youtu.be"), "whatsapp": ("wa.me", "whatsapp.com"),
+              "website": None}
+CONTACT_KINDS = ("phone", "whatsapp", "email")
 EVENT_FIELDS = (
     "title", "description", "start_date", "start_time", "end_time", "venue", "district",
     "organizer", "promoter", "performer", "ticket", "contact", "category",
@@ -81,6 +87,13 @@ class Venue:
     city: str = CITY
     aliases: list[str] = field(default_factory=list)
     candidate_matches: list[str] = field(default_factory=list)
+    # --- 1.1.0 (all optional) ---
+    contacts: list[dict[str, Any]] = field(default_factory=list)   # {kind, value, authorized, authorization_note, source_evidence}
+    links: list[dict[str, Any]] = field(default_factory=list)      # {kind, url, official, source_evidence}
+    verification_note: str | None = None
+    verified_by: str | None = None
+    verified_at: str | None = None
+    merged_into: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -160,6 +173,34 @@ def validate_claim(c: FieldClaim) -> None:
         raise ContractError("machine-extracted values may not be labelled observed")
 
 
+def validate_link(k: dict[str, Any]) -> None:
+    from urllib.parse import urlparse
+    kind, url = k.get("kind"), str(k.get("url", ""))
+    if kind not in LINK_KINDS:
+        raise ContractError(f"link kind must be one of {sorted(LINK_KINDS)}")
+    u = urlparse(url)
+    if u.scheme != "https" or not u.hostname or u.username or u.password:
+        raise ContractError("links must be https URLs without embedded credentials")
+    domains = LINK_KINDS[kind]
+    host = u.hostname.lower()
+    if domains and not any(host == d or host.endswith("." + d) for d in domains):
+        raise ContractError(f"a {kind} link must be on {domains}")
+    if not k.get("source_evidence") and not k.get("official"):
+        raise ContractError("a link needs source evidence or an explicit official=true confirmation")
+
+
+def validate_contact(c: dict[str, Any]) -> None:
+    import re
+    if c.get("kind") not in CONTACT_KINDS:
+        raise ContractError(f"contact kind must be one of {CONTACT_KINDS}")
+    v = str(c.get("value", "")).strip()
+    ok = re.fullmatch(r"[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,63}", v) if c["kind"] == "email" else re.fullmatch(r"\+?[0-9][0-9 .-]{6,20}", v)
+    if not ok:
+        raise ContractError(f"invalid {c.get('kind')} contact value")
+    if c.get("authorized") and not str(c.get("authorization_note", "")).strip():
+        raise ContractError("an authorized public contact needs an authorization_note (why it may be shown)")
+
+
 def validate_venue(v: Venue) -> None:
     if not v.venue_id or not v.name:
         raise ContractError("venue_id and name are required")
@@ -169,6 +210,14 @@ def validate_venue(v: Venue) -> None:
         raise ContractError(f"invalid verification_status {v.verification_status!r}")
     if not v.source_references:
         raise ContractError("venue requires at least one source reference")
+    if v.venue_type is not None and v.venue_type not in VENUE_TYPES:
+        raise ContractError(f"venue_type must be one of {VENUE_TYPES}")
+    if v.verification_status == "verified" and not (v.verification_note or "").strip():
+        raise ContractError("a verified venue needs a verification_note")
+    for k in v.links:
+        validate_link(k)
+    for c in v.contacts:
+        validate_contact(c)
     for lat_lon, lo, hi in ((v.latitude, -90, 90), (v.longitude, -180, 180)):
         if lat_lon is not None and not lo <= lat_lon <= hi:
             raise ContractError("coordinate out of range")

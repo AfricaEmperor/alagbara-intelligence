@@ -192,3 +192,16 @@ def test_apply_decisions_from_pulse_is_idempotent_and_rejects_bad_rows(store, re
     assert store.apply_decisions(f) == {"applied": 1, "skipped_duplicate": 0, "rejected": 3, "stale": 0}
     assert store.apply_decisions(f)["applied"] == 0
     assert store.get_event(out["event_id"]).review_status == "approved"
+
+
+def test_extractor_handles_french_present_and_ocr_time_confusion():
+    ex = extract_event("STUDIO FICTIF PRÉSENTE\nNUIT AFRO VOL. 3\nSAMEDI 28 NOVEMBRE 2026\nDE 22H À O4H\nLieu : Club Exemple, Haie Vive\n", "o", "derived", "ocr")
+    assert claims(ex, "organizer") == ["STUDIO FICTIF"]
+    assert claims(ex, "start_time") == ["22:00"] and claims(ex, "end_time") == ["04:00"]       # "O4H" repaired, not invented
+    assert claims(ex, "category") == ["club_night"]
+    # the repair is conservative: a bare "O" elsewhere is left alone
+    assert claims(extract_event("SOIREE\n10/12/2026\nLieu : Bar O Test\n", "o"), "start_time") == []
+
+
+def test_brunch_live_is_a_brunch_not_a_concert():
+    assert claims(extract_event("BRUNCH LIVE\nSamedi midi\nLieu : Bar Fictif\n", "o"), "category") == ["brunch"]

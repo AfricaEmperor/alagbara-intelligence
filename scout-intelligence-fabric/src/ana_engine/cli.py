@@ -47,7 +47,7 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--output", required=True)
     s = sub.add_parser("pg-reconcile", help="compare this SQLite store with PostgreSQL via a read-only psql command")
     s.add_argument("--psql", required=True, help='e.g. "psql -d <db>" (SELECT statements only are issued)')
-    s = sub.add_parser("export-feed"); s.add_argument("--output", default="-")
+    s = sub.add_parser("export-feed"); s.add_argument("--output", default="-"); s.add_argument("--approved-only", action="store_true")
     a = ap.parse_args(argv)
 
     root = Path(a.data)
@@ -85,7 +85,7 @@ def main(argv: list[str] | None = None) -> int:
         if a.cmd == "apply-decisions":
             print(json.dumps(store.apply_decisions(Path(a.file)))); return 0
         if a.cmd == "export-feed":
-            out = json.dumps(store.export_feed(), indent=2, ensure_ascii=False)
+            out = json.dumps(store.export_feed(approved_only=a.approved_only), indent=2, ensure_ascii=False)
             if a.output == "-":
                 print(out)
             else:

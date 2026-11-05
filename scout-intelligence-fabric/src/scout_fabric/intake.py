@@ -73,7 +73,8 @@ def _video_meta(path: Path) -> dict[str, Any]:
 
 
 def ingest_upload(path: Path, source_id: str, registry: SourceRegistry, media_dir: Path,
-                  now: datetime | None = None) -> tuple[EvidenceRecord, bool]:
+                  now: datetime | None = None, source_url: str | None = None,
+                  extra_metadata: dict[str, Any] | None = None) -> tuple[EvidenceRecord, bool]:
     """Returns (evidence, created). Re-ingesting identical bytes from the same source is a no-op."""
     registry.require_authorized(source_id, "upload")  # AT-12: unauthorized acquisition rejected
     path = Path(path)
@@ -100,6 +101,13 @@ def ingest_upload(path: Path, source_id: str, registry: SourceRegistry, media_di
         shutil.copyfile(path, dest)
 
     meta: dict[str, Any] = {"mime": mime, "bytes": size, "context_verified": False}
+    if source_url:                       # where the poster was found (provenance claim, not verified)
+        from urllib.parse import urlparse
+        u = urlparse(source_url)
+        if u.scheme not in ("http", "https") or not u.hostname or u.username or u.password:
+            raise RejectedUpload("source_url must be an http(s) URL without embedded credentials")
+    for k, v in (extra_metadata or {}).items():   # e.g. permission_note, operator
+        meta[str(k)[:40]] = str(v)[:300]
     if media_type == "image":
         dims = _image_dims(data, mime)
         meta["dimensions"] = {"width": dims[0], "height": dims[1]} if dims else "unknown"
@@ -108,7 +116,7 @@ def ingest_upload(path: Path, source_id: str, registry: SourceRegistry, media_di
 
     ev = EvidenceRecord(
         observation_id=observation_id, source_id=source_id, source_platform="upload",
-        source_url=None, collection_method="operator_upload",
+        source_url=source_url, collection_method="operator_upload",
         collected_at=(now or datetime.now(UTC)).isoformat(),
         content_hash=content_hash,
         evidence_state="unverified",  # file is observed; its social-platform context is not verified

@@ -41,6 +41,8 @@ CREATE TABLE IF NOT EXISTS decisions(decision_id TEXT PRIMARY KEY, event_id TEXT
   reviewer TEXT NOT NULL, note TEXT, version_seen INTEGER, version_after INTEGER, resulting_status TEXT,
   kind TEXT NOT NULL DEFAULT 'human', at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS decision_rejections(decision_id TEXT PRIMARY KEY, reason TEXT NOT NULL, at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS corrections(correction_id TEXT PRIMARY KEY, event_id TEXT NOT NULL, reviewer TEXT NOT NULL,
+  changes TEXT NOT NULL, note TEXT, version_seen INTEGER, version_after INTEGER, at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS applied_decisions(decision_id TEXT PRIMARY KEY, applied_at TEXT);
 CREATE TABLE IF NOT EXISTS failures(id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT, source_id TEXT,
   reason TEXT, alternative TEXT);
@@ -330,20 +332,69 @@ class RadarStore:
                 self.audit("system", action, key, {"error": reason})
 
     # ---- feed for PULSE --------------------------------------------------------------------
-    def export_feed(self, generated_at: str | None = None) -> dict[str, Any]:
-        venues = {v.venue_id: v for v in self.venues()}
+    def export_feed(self, generated_at: str | None = None, approved_only: bool = False) -> dict[str, Any]:
+        """Feed for PULSE (contract 1.1.0). approved_only=True is the PUBLISH view: only human-approved events, and only
+        venues that have one (or are verified). Reviewer identities never appear; only authorized venue contacts do."""
+        venues_all = {v.venue_id: v for v in self.venues()}
+
+        def public_venue(v: Venue) -> dict:
+            """What may leave the store: authorized contacts only, no operator identity, no matching internals."""
+            vd = v.to_dict()
+            vd["contacts"] = [{k: c[k] for k in ("kind", "value", "authorization_note") if k in c}
+                              for c in v.contacts if c.get("authorized")]
+            for k in ("verified_by", "candidate_matches", "merged_into"):
+                vd.pop(k, None)
+            return vd
+
         evidence = {e["observation_id"]: e for e in self.all_evidence()}
         parties = {p.party_id: p for p in self.parties()}
+        corr: dict[str, set[str]] = {}
+        for eid, changes in self.db.execute("SELECT event_id, changes FROM corrections"):
+            corr.setdefault(eid, set()).update(json.loads(changes))
+        decided = {}
+        for eid, at in self.db.execute("SELECT event_id, MAX(at) FROM decisions WHERE kind='human' GROUP BY event_id"):
+            decided[eid] = at
         events = []
         for ev in self.events():
+            if approved_only and ev.review_status != "approved":
+                continue
             d = ev.to_dict()
             d["version"] = self.event_version(ev.event_id)
-            d["venue"] = venues[ev.venue_id].to_dict() if ev.venue_id in venues else None
+            ven = venues_all.get(ev.venue_id)
+            while ven is not None and ven.merged_into:
+                ven = venues_all.get(ven.merged_into)
+            d["venue_id"] = ven.venue_id if ven else d["venue_id"]
+            d["venue"] = public_venue(ven) if ven else None
             d["organizer"] = parties[ev.organizer_id].to_dict() if ev.organizer_id in parties else None
             d["performers"] = [parties[p].to_dict() for p in ev.performer_ids if p in parties]
             d["evidence"] = [evidence[r] for r in ev.evidence_references if r in evidence]
+            for c in d["field_claims"]:                      # no reviewer identity in the feed
+                if c["method"].startswith("human:"):
+                    c["method"] = "human:correction"
+            d["review"] = {"status": ev.review_status, "decided_at": decided.get(ev.event_id),
+                           "human_corrected_fields": sorted(corr.get(ev.event_id, []))}
             events.append(d)
-        return {"contract_version": "1.0.0", "city": CITY, "timezone": TIMEZONE,
-                "generated_at": generated_at or now_iso(), "events": events,
-                "venues": [v.to_dict() for v in venues.values()],
+        by_venue: dict[str, list[dict]] = {}
+        for e in events:
+            if e["venue_id"]:
+                by_venue.setdefault(e["venue_id"], []).append(e)
+        venues = []
+        for vid, v in venues_all.items():
+            if v.merged_into:
+                continue
+            vevents = by_venue.get(vid, [])
+            if approved_only and not vevents and v.verification_status != "verified":
+                continue
+            vd = public_venue(v)
+            vd["event_ids"] = [e["event_id"] for e in vevents]
+            stamps = [x["collected_at"] for e in vevents for x in e["evidence"]] or \
+                     [evidence[r]["collected_at"] for r in v.source_references if r in evidence]
+            vd["last_observed_at"] = max(stamps) if stamps else None
+            dates = [e["start_at"][:10] for e in vevents if e["start_at"]]
+            vd["last_event_date"] = max(dates) if dates else None
+            venues.append(vd)
+        return {"contract_version": "1.1.0", "city": CITY, "timezone": TIMEZONE,
+                "generated_at": generated_at or now_iso(), "approved_only": approved_only, "events": events,
+                "venues": venues,
+                "counts": {"events": len(events), "venues": len(venues)},
                 "review": {"pending": [e["event_id"] for e in events if e["review_status"] == "pending"]}}

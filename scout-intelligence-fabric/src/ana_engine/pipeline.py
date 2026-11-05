@@ -63,6 +63,10 @@ def resolve_venue(store: RadarStore, name: str, district: str | None, evidence_i
     venues = store.venues()
     for v in venues:
         if key == norm_name(v.name) or key in {norm_name(a) for a in v.aliases}:
+            while v.merged_into:                      # a merged venue redirects to its surviving record
+                v = store.get_venue(v.merged_into) or v
+                if not v.merged_into:
+                    break
             if evidence_id not in v.source_references:
                 v.source_references.append(evidence_id)
             if district and not v.district:
@@ -93,26 +97,33 @@ def _norm_claim_value(c: FieldClaim) -> str:
 
 
 def _conflict_sig(conflicts: list[dict]) -> frozenset:
-    return frozenset((c["field"], frozenset(norm_name(v["value"]) for v in c["values"])) for c in conflicts)
+    return frozenset((c["field"], frozenset(norm_name(v["value"]) for v in c["values"]))
+                     for c in conflicts if not c.get("resolved"))
 
 
 def find_conflicts(claims: list[FieldClaim]) -> list[dict]:
+    """Differing machine/operator-upload claims for one field. A later HUMAN correction resolves the conflict but the
+    competing values stay on record (resolved=True): history is never rewritten."""
     out = []
     for f in CONFLICT_FIELDS:
         groups: dict[str, dict] = {}
+        human = [c for c in claims if c.field == f and c.method.startswith("human:")]
         for c in claims:
-            if c.field == f and c.value:
+            if c.field == f and c.value and not c.method.startswith("human:"):
                 g = groups.setdefault(_norm_claim_value(c), {"value": c.value, "evidence_ids": []})
                 g["evidence_ids"] += [e for e in c.evidence_ids if e not in g["evidence_ids"]]
         if len(groups) > 1:
-            out.append({"field": f, "values": list(groups.values())})
+            entry = {"field": f, "values": list(groups.values()), "resolved": bool(human)}
+            if human:
+                entry["resolved_value"] = human[-1].value
+            out.append(entry)
     return out
 
 
 def confidence(ev: Event, unverified_text: bool) -> str:
     sources = len(ev.evidence_references)
     core = ev.title and ev.start_at and ev.venue_id
-    if ev.contradictions or not ev.title:
+    if any(not c.get("resolved") for c in ev.contradictions) or not ev.title:
         return "low"
     if sources >= 2 and core:
         return "high"
@@ -214,10 +225,11 @@ def process_evidence(store: RadarStore, evidence: EvidenceRecord, provider: Text
 
 
 def run_upload(store: RadarStore, registry: SourceRegistry, path: Path, source_id: str,
-               provider: TextProvider) -> dict:
+               provider: TextProvider, source_url: str | None = None, extra_metadata: dict | None = None) -> dict:
     """Full slice: upload -> SCOUT evidence -> ANA extraction -> event+venue -> store."""
     try:
-        evidence, created = ingest_upload(path, source_id, registry, store.media_dir)
+        evidence, created = ingest_upload(path, source_id, registry, store.media_dir,
+                                          source_url=source_url, extra_metadata=extra_metadata)
     except UnauthorizedSource as exc:
         store.record_failure(exc.source_id, exc.reason, exc.alternative)
         store.audit("scout", "acquisition_rejected", exc.source_id, {"reason": exc.reason})
