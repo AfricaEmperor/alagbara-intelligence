@@ -86,7 +86,12 @@ class RadarStore:
         self._depth = 0
         self.db.executescript(SCHEMA)
         # local migration v1 -> v2: version every pre-existing event at 1 (idempotent)
-        self.db.execute("INSERT OR IGNORE INTO event_versions SELECT event_id, 1 FROM events")
+        # Only write when something actually needs migrating: opening the store must not take the write lock
+        # (otherwise any process opening it would block behind another process's long transaction).
+        if self.db.execute("SELECT 1 FROM events e LEFT JOIN event_versions v USING(event_id) "
+                           "WHERE v.event_id IS NULL LIMIT 1").fetchone():
+            with self.transaction():
+                self.db.execute("INSERT OR IGNORE INTO event_versions SELECT event_id, 1 FROM events")
 
     @staticmethod
     def _backup_before_migration(dbfile: Path) -> None:

@@ -11,6 +11,7 @@ from pathlib import Path
 from scout_fabric.sources import Source, SourceRegistry, UnauthorizedSource
 from scout_fabric.text_providers import ChainProvider, SidecarTextProvider, TesseractProvider
 
+from .pg_sync import backfill_sql, canonical, diff, pg_canonical, psql_runner
 from .pipeline import run_upload
 from .store import DecisionConflict, RadarStore, StaleWrite
 
@@ -42,6 +43,10 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--decision-id", default=None, help="idempotency key (generated and printed if omitted)")
     s.add_argument("--expected-version", type=int, default=None, help="reject if the event changed since you read it")
     s = sub.add_parser("apply-decisions"); s.add_argument("file")
+    s = sub.add_parser("pg-backfill-sql", help="GENERATE (never run) an idempotent SQLite->PostgreSQL backfill script")
+    s.add_argument("--output", required=True)
+    s = sub.add_parser("pg-reconcile", help="compare this SQLite store with PostgreSQL via a read-only psql command")
+    s.add_argument("--psql", required=True, help='e.g. "psql -d <db>" (SELECT statements only are issued)')
     s = sub.add_parser("export-feed"); s.add_argument("--output", default="-")
     a = ap.parse_args(argv)
 
@@ -72,6 +77,11 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"rejected: {exc}", file=sys.stderr); return 3
             print(ev.event_id, "->", ev.review_status, f"({status}, decision_id={did})")
             return 0
+        if a.cmd == "pg-backfill-sql":
+            write_atomic(Path(a.output), backfill_sql(store)); print("wrote", a.output); return 0
+        if a.cmd == "pg-reconcile":
+            diffs = diff(canonical(store), pg_canonical(psql_runner(a.psql)))
+            print(json.dumps({"parity": not diffs, "differences": diffs}, indent=2)); return 0 if not diffs else 4
         if a.cmd == "apply-decisions":
             print(json.dumps(store.apply_decisions(Path(a.file)))); return 0
         if a.cmd == "export-feed":

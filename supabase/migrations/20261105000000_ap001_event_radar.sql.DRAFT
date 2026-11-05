@@ -1,41 +1,407 @@
--- AP-001 Event Radar persistence — DRAFT, NOT APPLIED.
--- Applying to any Supabase project requires human approval (production DB writes are gated).
--- Mirrors the SQLite store in ana_engine/store.py. RLS is enabled on every table; no anon access.
--- Writes happen only through the service role in the Python worker (never in client code).
--- Reviewers (authenticated, listed in radar_reviewers) may read all and change review status only
--- through radar_review_event(), which audits the change.
+-- AP-001 Event Radar persistence, v2 (R3) -- DRAFT. NOT APPLIED to any Supabase project.
+-- Applying it requires a separate, explicit authorization. Tested only on a disposable local PostgreSQL 16 with
+-- stubbed Supabase roles/auth (supabase/tests/run_local_pg.sh). The ".DRAFT" suffix keeps the Supabase CLI from
+-- picking it up. Supersedes the R1 draft, which had three defects (reviewers locked out by RLS on the role table,
+-- column/JSON status divergence, no replay protection).
+--
+-- DESIGN (every point is exercised by supabase/tests/radar_rls_test.sql):
+--  * Own schema `radar`: NOT in PostgREST's exposed schemas by default, and (verified read-only on a live project)
+--    a new schema receives none of the auto-grants that Supabase gives to `public`.
+--  * Explicit REVOKE/GRANT. RLS enabled on every table. No policy => no access.
+--  * Reviewer = an Auth user whose server-controlled app_metadata.radar_role is 'reviewer'|'admin' (set only via the
+--    Auth admin API with the service role, never by clients), email confirmed, not banned/deleted. Checked LIVE
+--    against auth.users on every call (not from a possibly stale JWT claim), mirroring what PULSE does per request.
+--    There is deliberately NO second reviewer table: one source of truth.
+--  * Reviewers get SELECT only (through RLS). No direct writes by authenticated/anon. Writes go through
+--    SECURITY DEFINER functions with `search_path = ''` and fully-qualified names.
+--  * review_event(): one transaction; row lock; replay (decision_id) is a no-op; id reuse with another payload is
+--    rejected; stale version rejected; exactly one event row must update BEFORE decision + audit rows are written.
+--  * review_status is GENERATED from the JSON document: column and JSON cannot diverge.
+--  * Evidence, decisions, audit, links are append-only (trigger-enforced, TRUNCATE denied everywhere).
+--  * Ingestion (service_role only) goes through upsert_event(): versioned, cannot approve/reject, may only reopen with
+--    a recorded reason.
+--
+-- ROLLBACK (only ever against the database it was applied to): see bottom of file.
+begin;
 
-create table radar_evidence (observation_id text primary key, doc jsonb not null, created_at timestamptz default now());
-create table radar_venues   (venue_id text primary key, doc jsonb not null, updated_at timestamptz default now());
-create table radar_parties  (party_id text primary key, doc jsonb not null);
-create table radar_events   (event_id text primary key, doc jsonb not null,
-  review_status text not null default 'pending' check (review_status in ('pending','approved','rejected','correction_requested')),
-  start_at text, updated_at timestamptz default now());
-create table radar_obs_event(observation_id text primary key references radar_evidence, event_id text not null references radar_events);
-create table radar_audit    (id bigserial primary key, at timestamptz default now(), actor text not null, action text not null, subject text, detail jsonb);
-create table radar_reviewers(user_id uuid primary key references auth.users);
+create schema radar;
+revoke all on schema radar from public;
 
-alter table radar_evidence enable row level security;  alter table radar_venues enable row level security;
-alter table radar_parties enable row level security;   alter table radar_events enable row level security;
-alter table radar_obs_event enable row level security; alter table radar_audit enable row level security;
-alter table radar_reviewers enable row level security;
+-- ---------------------------------------------------------------------------------------------------- tables
+create table radar.evidence (
+  observation_id text primary key check (observation_id ~ '^[0-9a-f]{64}$'),
+  content_hash   text not null check (content_hash ~ '^[0-9a-f]{64}$'),
+  doc            jsonb not null,
+  created_at     timestamptz not null default now(),
+  constraint evidence_doc_ids check (doc->>'observation_id' = observation_id and doc->>'content_hash' = content_hash)
+);
 
-create policy reviewers_read_events   on radar_events   for select to authenticated using (exists(select 1 from radar_reviewers r where r.user_id = auth.uid()));
-create policy reviewers_read_evidence on radar_evidence for select to authenticated using (exists(select 1 from radar_reviewers r where r.user_id = auth.uid()));
-create policy reviewers_read_venues   on radar_venues   for select to authenticated using (exists(select 1 from radar_reviewers r where r.user_id = auth.uid()));
-create policy reviewers_read_parties  on radar_parties  for select to authenticated using (exists(select 1 from radar_reviewers r where r.user_id = auth.uid()));
-create policy reviewers_read_audit    on radar_audit    for select to authenticated using (exists(select 1 from radar_reviewers r where r.user_id = auth.uid()));
--- no insert/update/delete policies: direct writes are denied for non-service roles.
+create table radar.venues (
+  venue_id   text primary key,
+  doc        jsonb not null,
+  updated_at timestamptz not null default now(),
+  constraint venue_doc_id check (doc->>'venue_id' = venue_id and doc->>'city' = 'Cotonou')
+);
 
-create function radar_review_event(p_event text, p_decision text, p_note text default '')
-returns void language plpgsql security definer set search_path = public as $$
-declare s text;
+create table radar.parties (
+  party_id text primary key,
+  doc      jsonb not null,
+  constraint party_doc_id check (doc->>'party_id' = party_id)
+);
+
+create table radar.events (
+  event_id      text primary key,
+  doc           jsonb not null,
+  version       integer not null default 1 check (version >= 1),
+  review_status text generated always as (doc->>'review_status') stored,
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now(),
+  constraint event_doc_id     check (doc->>'event_id' = event_id),
+  constraint event_timezone   check (doc->>'timezone' = 'Africa/Porto-Novo'),
+  constraint event_evidence   check (jsonb_typeof(doc->'evidence_references') = 'array'
+                                     and jsonb_array_length(doc->'evidence_references') >= 1),
+  constraint event_status_ok  check (review_status in ('pending','approved','rejected','correction_requested'))
+);
+
+create table radar.obs_event (
+  observation_id text primary key references radar.evidence (observation_id),
+  event_id       text not null references radar.events (event_id)
+);
+
+create table radar.decisions (
+  decision_id      text primary key check (decision_id ~ '^[A-Za-z0-9][A-Za-z0-9-]{7,63}$'
+                                           or decision_id like 'sys-%'),
+  event_id         text not null references radar.events (event_id),
+  decision         text not null check (decision in ('approve','reject','request_correction','reopen')),
+  reviewer         text not null,
+  note             text check (char_length(note) <= 500),
+  version_seen     integer,
+  version_after    integer,
+  resulting_status text not null check (resulting_status in ('pending','approved','rejected','correction_requested')),
+  kind             text not null check (kind in ('human','system')),
+  at               timestamptz not null default now(),
+  constraint decision_kind_matches check ((kind = 'human') = (decision <> 'reopen'))
+);
+create index decisions_event_idx on radar.decisions (event_id, at);
+
+create table radar.audit (
+  id      bigint generated always as identity primary key,
+  at      timestamptz not null default now(),
+  actor   text not null,
+  action  text not null,
+  subject text,
+  detail  jsonb not null default '{}'::jsonb,
+  legacy_sqlite_id bigint unique          -- natural key of rows backfilled from SQLite (makes backfill idempotent)
+);
+
+create table radar.decision_rejections (
+  decision_id text primary key,
+  reason      text not null,
+  at          timestamptz not null default now()
+);
+
+create table radar.failures (
+  id          bigint generated always as identity primary key,
+  at          timestamptz not null default now(),
+  source_id   text not null,
+  reason      text not null,
+  alternative text,
+  legacy_sqlite_id bigint unique
+);
+
+-- ------------------------------------------------------------------------------------ immutability triggers
+create function radar.deny_mutation() returns trigger
+language plpgsql set search_path = '' as $$
 begin
-  if not exists(select 1 from radar_reviewers where user_id = auth.uid()) then raise exception 'not a reviewer'; end if;
-  s := case p_decision when 'approve' then 'approved' when 'reject' then 'rejected' when 'request_correction' then 'correction_requested' end;
-  if s is null then raise exception 'invalid decision'; end if;
-  update radar_events set review_status = s, updated_at = now() where event_id = p_event;
-  insert into radar_audit(actor, action, subject, detail) values (auth.uid()::text, 'review:'||p_decision, p_event, jsonb_build_object('note', p_note));
+  raise exception 'radar.% is append-only', tg_table_name using errcode = '42501';
 end $$;
-revoke all on function radar_review_event(text,text,text) from public, anon;
-grant execute on function radar_review_event(text,text,text) to authenticated;
+
+create function radar.deny_truncate() returns trigger
+language plpgsql set search_path = '' as $$
+begin
+  raise exception 'TRUNCATE is not permitted on radar.%', tg_table_name using errcode = '42501';
+end $$;
+
+create trigger evidence_append_only  before update or delete on radar.evidence           for each row execute function radar.deny_mutation();
+create trigger decisions_append_only before update or delete on radar.decisions          for each row execute function radar.deny_mutation();
+create trigger audit_append_only     before update or delete on radar.audit              for each row execute function radar.deny_mutation();
+create trigger obs_event_append_only before update or delete on radar.obs_event          for each row execute function radar.deny_mutation();
+create trigger rejections_append_only before update or delete on radar.decision_rejections for each row execute function radar.deny_mutation();
+create trigger failures_append_only  before update or delete on radar.failures           for each row execute function radar.deny_mutation();
+create trigger events_no_delete      before delete on radar.events                       for each row execute function radar.deny_mutation();
+
+create trigger evidence_no_truncate  before truncate on radar.evidence  for each statement execute function radar.deny_truncate();
+create trigger venues_no_truncate    before truncate on radar.venues    for each statement execute function radar.deny_truncate();
+create trigger parties_no_truncate   before truncate on radar.parties   for each statement execute function radar.deny_truncate();
+create trigger events_no_truncate    before truncate on radar.events    for each statement execute function radar.deny_truncate();
+create trigger obs_event_no_truncate before truncate on radar.obs_event for each statement execute function radar.deny_truncate();
+create trigger decisions_no_truncate before truncate on radar.decisions for each statement execute function radar.deny_truncate();
+create trigger audit_no_truncate     before truncate on radar.audit     for each statement execute function radar.deny_truncate();
+create trigger rejections_no_truncate before truncate on radar.decision_rejections for each statement execute function radar.deny_truncate();
+create trigger failures_no_truncate  before truncate on radar.failures  for each statement execute function radar.deny_truncate();
+
+-- ------------------------------------------------------------------------------------ identity helpers
+-- Live check against auth.users (trusted: app_metadata can only be written by the Auth admin API / service role).
+create function radar.reviewer_role() returns text
+language sql stable security definer set search_path = '' as $$
+  select u.raw_app_meta_data ->> 'radar_role'
+  from auth.users u
+  where u.id = auth.uid()
+    and u.email_confirmed_at is not null
+    and u.deleted_at is null
+    and (u.banned_until is null or u.banned_until <= now())
+    and u.raw_app_meta_data ->> 'radar_role' in ('reviewer', 'admin')
+$$;
+
+create function radar.is_reviewer() returns boolean
+language sql stable security definer set search_path = '' as $$
+  select radar.reviewer_role() is not null
+$$;
+
+create function radar.is_admin() returns boolean
+language sql stable security definer set search_path = '' as $$
+  select radar.reviewer_role() = 'admin'
+$$;
+
+-- ------------------------------------------------------------------------------------ human review
+-- Returns jsonb {status: 'applied'|'duplicate', event_id, version, review_status}.
+-- Errors (SQLSTATE): 28000 not authenticated, 42501 not a reviewer, 22023 invalid input, P0002 event not found,
+-- 23505 decision_id reused for a different decision, 40001 stale version, XX001 integrity guard.
+create function radar.review_event(
+  p_decision_id      text,
+  p_event_id         text,
+  p_decision         text,
+  p_expected_version integer,
+  p_note             text default ''
+) returns jsonb
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_uid     uuid := auth.uid();
+  v_actor   text;
+  v_status  text;
+  v_before  text;
+  v_version integer;
+  v_prior   record;
+  v_rows    integer;
+begin
+  if v_uid is null then
+    raise exception 'not authenticated' using errcode = '28000';
+  end if;
+  if radar.reviewer_role() is null then
+    raise exception 'not a reviewer' using errcode = '42501';
+  end if;
+  v_actor := v_uid::text;
+
+  v_status := case p_decision
+                when 'approve' then 'approved'
+                when 'reject' then 'rejected'
+                when 'request_correction' then 'correction_requested'
+              end;
+  if v_status is null then
+    raise exception 'invalid decision' using errcode = '22023';
+  end if;
+  if p_decision_id is null or p_decision_id !~ '^[A-Za-z0-9][A-Za-z0-9-]{7,63}$' then
+    raise exception 'invalid decision_id' using errcode = '22023';
+  end if;
+  if p_expected_version is null or p_expected_version < 1 then
+    raise exception 'invalid expected version' using errcode = '22023';
+  end if;
+  if char_length(coalesce(p_note, '')) > 500 then
+    raise exception 'note too long' using errcode = '22023';
+  end if;
+
+  -- serialize concurrent reviews/ingests of the same event
+  select e.version, e.review_status into v_version, v_before
+  from radar.events e where e.event_id = p_event_id for update;
+  if not found then
+    raise exception 'event not found' using errcode = 'P0002';
+  end if;
+
+  -- replay first: a retry of an already-recorded decision returns the original outcome, even if the event moved on
+  select d.event_id, d.decision, d.reviewer, d.version_after, d.resulting_status into v_prior
+  from radar.decisions d where d.decision_id = p_decision_id;
+  if found then
+    if v_prior.event_id = p_event_id and v_prior.decision = p_decision and v_prior.reviewer = v_actor then
+      return jsonb_build_object('status', 'duplicate', 'event_id', p_event_id,
+                                'version', v_prior.version_after, 'review_status', v_prior.resulting_status);
+    end if;
+    raise exception 'decision_id already used for a different decision' using errcode = '23505';
+  end if;
+
+  if v_version <> p_expected_version then
+    raise exception 'stale version: event is at %, reviewer saw %', v_version, p_expected_version using errcode = '40001';
+  end if;
+
+  update radar.events
+     set doc = jsonb_set(doc, '{review_status}', to_jsonb(v_status)),
+         version = version + 1,
+         updated_at = now()
+   where event_id = p_event_id and version = p_expected_version;
+  get diagnostics v_rows = row_count;
+  if v_rows <> 1 then                                  -- exactly one intended row, BEFORE any audit record exists
+    raise exception 'integrity guard: % rows updated, expected 1', v_rows using errcode = 'XX001';
+  end if;
+
+  insert into radar.decisions (decision_id, event_id, decision, reviewer, note, version_seen, version_after,
+                               resulting_status, kind)
+  values (p_decision_id, p_event_id, p_decision, v_actor, nullif(p_note, ''), p_expected_version,
+          p_expected_version + 1, v_status, 'human');
+  insert into radar.audit (actor, action, subject, detail)
+  values (v_actor, 'review:' || p_decision, p_event_id,
+          jsonb_build_object('decision_id', p_decision_id, 'from', v_before, 'to', v_status,
+                             'version', p_expected_version + 1));
+
+  return jsonb_build_object('status', 'applied', 'event_id', p_event_id,
+                            'version', p_expected_version + 1, 'review_status', v_status);
+end $$;
+
+-- Thin invoker wrapper in `public` so reviewers can call it via PostgREST RPC without exposing the radar schema.
+create function public.radar_review_event(
+  p_decision_id text, p_event_id text, p_decision text, p_expected_version integer, p_note text default ''
+) returns jsonb
+language sql security invoker set search_path = '' as $$
+  select radar.review_event(p_decision_id, p_event_id, p_decision, p_expected_version, p_note)
+$$;
+
+-- ------------------------------------------------------------------------------------ ingestion (service_role)
+-- p_expected_version NULL => create (must not exist, must be 'pending'); otherwise versioned update.
+-- Ingestion can never approve/reject. The only status change it may make is back to 'pending' from a decided
+-- status, and only with a reason, which is recorded as a system decision + audit row.
+create function radar.upsert_event(p_doc jsonb, p_expected_version integer, p_reopen_reason text default null)
+returns integer
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_id      text := p_doc ->> 'event_id';
+  v_new     text := p_doc ->> 'review_status';
+  v_old     text;
+  v_version integer;
+  v_rows    integer;
+begin
+  if v_id is null or v_new is null then
+    raise exception 'event_id and review_status are required' using errcode = '22023';
+  end if;
+  if p_expected_version is null then
+    if v_new <> 'pending' then
+      raise exception 'new events must be pending' using errcode = '22023';
+    end if;
+    insert into radar.events (event_id, doc) values (v_id, p_doc);       -- unique violation if it already exists
+    insert into radar.audit (actor, action, subject, detail)
+    values ('system:ingest', 'event_created', v_id, jsonb_build_object('version', 1));
+    return 1;
+  end if;
+
+  select e.version, e.review_status into v_version, v_old from radar.events e where e.event_id = v_id for update;
+  if not found then
+    raise exception 'event not found' using errcode = 'P0002';
+  end if;
+  if v_version <> p_expected_version then
+    raise exception 'stale version: event is at %, caller saw %', v_version, p_expected_version using errcode = '40001';
+  end if;
+  if v_new <> v_old then
+    if not (v_new = 'pending' and v_old <> 'pending' and coalesce(p_reopen_reason, '') <> '') then
+      raise exception 'ingestion may only reopen a decided event with a reason' using errcode = '42501';
+    end if;
+  end if;
+
+  update radar.events set doc = p_doc, version = version + 1, updated_at = now()
+   where event_id = v_id and version = p_expected_version;
+  get diagnostics v_rows = row_count;
+  if v_rows <> 1 then
+    raise exception 'integrity guard: % rows updated, expected 1', v_rows using errcode = 'XX001';
+  end if;
+
+  if v_new <> v_old then
+    insert into radar.decisions (decision_id, event_id, decision, reviewer, note, version_seen, version_after,
+                                 resulting_status, kind)
+    values ('sys-' || gen_random_uuid()::text, v_id, 'reopen', 'system:ana', p_reopen_reason, null,
+            p_expected_version + 1, 'pending', 'system');
+    insert into radar.audit (actor, action, subject, detail)
+    values ('system:ana', 'review_reopened', v_id,
+            jsonb_build_object('from', v_old, 'reason', p_reopen_reason, 'version', p_expected_version + 1));
+  end if;
+  insert into radar.audit (actor, action, subject, detail)
+  values ('system:ingest', 'event_updated', v_id, jsonb_build_object('version', p_expected_version + 1));
+  return p_expected_version + 1;
+end $$;
+
+-- Backfill from the SQLite store: insert-if-absent preserving version/doc exactly; an existing row that differs is a
+-- conflict (raised, never overwritten).
+create function radar.backfill_event(p_doc jsonb, p_version integer) returns text
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_id  text := p_doc ->> 'event_id';
+  v_row radar.events%rowtype;
+begin
+  select * into v_row from radar.events where event_id = v_id for update;
+  if not found then
+    insert into radar.events (event_id, doc, version) values (v_id, p_doc, p_version);
+    return 'inserted';
+  end if;
+  if v_row.doc = p_doc and v_row.version = p_version then
+    return 'unchanged';
+  end if;
+  raise exception 'backfill conflict for event %: existing row differs (version % vs %)', v_id, v_row.version, p_version
+    using errcode = '23505';
+end $$;
+
+-- ------------------------------------------------------------------------------------ grants (explicit)
+revoke all on all tables    in schema radar from public, anon, authenticated, service_role;
+revoke all on all sequences in schema radar from public, anon, authenticated, service_role;
+revoke all on all functions in schema radar from public, anon, authenticated, service_role;
+revoke all on function public.radar_review_event(text, text, text, integer, text) from public, anon, authenticated, service_role;
+-- future objects in this schema must not inherit API-role access either
+alter default privileges in schema radar revoke all on tables    from public, anon, authenticated, service_role;
+alter default privileges in schema radar revoke all on sequences from public, anon, authenticated, service_role;
+alter default privileges in schema radar revoke execute on functions from public, anon, authenticated, service_role;
+
+grant usage on schema radar to authenticated, service_role;
+
+-- reviewers: SELECT only, filtered by RLS below. anon: nothing at all.
+grant select on radar.events, radar.evidence, radar.venues, radar.parties, radar.obs_event, radar.decisions to authenticated;
+grant select on radar.audit, radar.decision_rejections, radar.failures to authenticated;   -- admin-only via RLS
+
+-- worker (service_role): reads everything; inserts evidence/links/failures/rejections; upserts venues and parties;
+-- writes events ONLY through upsert_event()/backfill_event(); decisions only via review_event() or backfill insert.
+grant select on all tables in schema radar to service_role;
+grant insert on radar.evidence, radar.obs_event, radar.failures, radar.decision_rejections, radar.decisions, radar.audit to service_role;
+grant insert, update on radar.venues, radar.parties to service_role;
+
+grant execute on function radar.is_reviewer(), radar.is_admin(), radar.reviewer_role() to authenticated, service_role;
+grant execute on function radar.review_event(text, text, text, integer, text) to authenticated;
+grant execute on function public.radar_review_event(text, text, text, integer, text) to authenticated;
+grant execute on function radar.upsert_event(jsonb, integer, text) to service_role;
+grant execute on function radar.backfill_event(jsonb, integer) to service_role;
+
+-- ------------------------------------------------------------------------------------ row level security
+alter table radar.evidence            enable row level security;
+alter table radar.venues              enable row level security;
+alter table radar.parties             enable row level security;
+alter table radar.events              enable row level security;
+alter table radar.obs_event           enable row level security;
+alter table radar.decisions           enable row level security;
+alter table radar.audit               enable row level security;
+alter table radar.decision_rejections enable row level security;
+alter table radar.failures            enable row level security;
+
+create policy reviewers_read on radar.events     for select to authenticated using (radar.is_reviewer());
+create policy reviewers_read on radar.evidence   for select to authenticated using (radar.is_reviewer());
+create policy reviewers_read on radar.venues     for select to authenticated using (radar.is_reviewer());
+create policy reviewers_read on radar.parties    for select to authenticated using (radar.is_reviewer());
+create policy reviewers_read on radar.obs_event  for select to authenticated using (radar.is_reviewer());
+create policy reviewers_read on radar.decisions  for select to authenticated using (radar.is_reviewer());
+create policy admins_read    on radar.audit      for select to authenticated using (radar.is_admin());
+create policy admins_read    on radar.decision_rejections for select to authenticated using (radar.is_admin());
+create policy admins_read    on radar.failures   for select to authenticated using (radar.is_admin());
+-- No INSERT/UPDATE/DELETE policy exists for any API role. service_role bypasses RLS (BYPASSRLS, verified on a live
+-- project) and is limited by the GRANTs above instead.
+
+commit;
+
+-- ======================================================================================== ROLLBACK
+-- Forward-only by design. To remove EVERYTHING this migration created (data included) from the database it was
+-- applied to -- after exporting evidence + decisions (see AP001_PERSISTENCE_DESIGN.md) -- run, as the owner:
+--   begin;
+--   drop function if exists public.radar_review_event(text, text, text, integer, text);
+--   drop schema radar cascade;      -- drops tables, triggers, functions and policies in the schema
+--   commit;
+-- Nothing outside the `radar` schema and that one public function is touched by this migration.
