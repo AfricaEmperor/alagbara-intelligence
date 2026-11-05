@@ -5,7 +5,6 @@ import sys
 
 from .acquire import acquire_public_page
 
-
 def main() -> int:
     parser = argparse.ArgumentParser(description="Capture one authorized public HTML page as evidence JSON.")
     parser.add_argument("url", help="Absolute HTTP(S) URL to retrieve")

@@ -3,7 +3,6 @@ import hashlib
 import re
 from urllib.parse import urlsplit, urlunsplit
 
-
 def stable_observation_id(source_url: str, subject: str, claim: str) -> str:
     material = "\n".join((source_url.strip(), subject.strip(), claim.strip())).encode("utf-8")
     return hashlib.sha256(material).hexdigest()

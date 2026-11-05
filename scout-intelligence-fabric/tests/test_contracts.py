@@ -1,6 +1,5 @@
-from scout_fabric.models import Provenance
+from scout_fabric.models import Observation, Provenance
 from scout_fabric.normalize import canonicalize_url, normalize_whitespace, stable_observation_id
-
 
 def test_stable_id_is_deterministic():
     assert stable_observation_id("https://example.org/a", "X", "Y") == stable_observation_id("https://example.org/a", "X", "Y")
