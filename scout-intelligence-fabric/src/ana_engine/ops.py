@@ -189,3 +189,52 @@ def ingest_manifest(store: RadarStore, registry: SourceRegistry, manifest: Path,
         w.writeheader()
         w.writerows(out_rows)
     return tally
+
+
+# ------------------------------------------------------------------------------------------------ measurement
+def report(store: RadarStore) -> dict:
+    """Extraction quality measured from REVIEWER behaviour, over REVIEWED events only (approved or rejected after a
+    human decision). An event nobody has reviewed says nothing about accuracy and is excluded, never counted as correct.
+
+    per field: read = machine produced a value; wrong_when_read = a human replaced a value the machine had read;
+    filled_by_human = machine read nothing and a human supplied it; cleared = human marked it not-on-the-poster."""
+    from statistics import median
+
+    from .curation import CORRECTABLE, is_human
+    from .pipeline import norm_name
+
+    events = store.events()
+    decided = {r[0]: r[1] for r in store.db.execute("SELECT event_id, MIN(at) FROM decisions WHERE kind='human' GROUP BY event_id")}
+    reviewed = [e for e in events if e.event_id in decided]
+    fields: dict[str, dict] = {}
+    for f in CORRECTABLE:
+        read = wrong = filled = cleared = 0
+        for e in reviewed:
+            machine = next((c for c in e.field_claims if c.field == f and not is_human(c) and c.value), None)
+            human = [c for c in e.field_claims if c.field == f and is_human(c)]
+            read += machine is not None
+            if human:
+                last = human[-1]
+                if machine and not last.value:
+                    cleared += 1
+                elif machine and norm_name(last.value or "") != norm_name(machine.value or ""):
+                    wrong += 1
+                elif not machine and last.value:
+                    filled += 1
+        n = len(reviewed)
+        fields[f] = {"read": read, "wrong_when_read": wrong, "filled_by_human": filled, "cleared": cleared,
+                     "read_rate": round(read / n, 3) if n else None,
+                     "wrong_when_read_rate": round(wrong / read, 3) if read else None}
+    ev_at = {e["observation_id"]: e["collected_at"] for e in store.all_evidence()}
+    lat = []
+    for e in reviewed:
+        first = min((ev_at[r] for r in e.evidence_references if r in ev_at), default=None)
+        if first:
+            from datetime import datetime
+            lat.append((datetime.fromisoformat(decided[e.event_id]) - datetime.fromisoformat(first)).total_seconds() / 60)
+    status = {s: sum(1 for e in events if e.review_status == s) for s in ("pending", "correction_requested", "approved", "rejected")}
+    return {"events": len(events), "reviewed_events": len(reviewed), "status": status, "fields": fields,
+            "median_minutes_upload_to_first_decision": round(median(lat), 1) if lat else None,
+            "events_with_unresolved_conflicts": sum(1 for e in events if any(not c.get("resolved") for c in e.contradictions)),
+            "events_missing_date": sum(1 for e in events if e.start_at is None),
+            "note": "Counts reviewed events only; fields nobody reviewed are not assumed correct. Synthetic fixtures say nothing about real accuracy."}

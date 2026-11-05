@@ -47,6 +47,7 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("backup", help="consistent backup of database + media + manifest"); s.add_argument("--out", required=True)
     s = sub.add_parser("verify-backup"); s.add_argument("path")
     s = sub.add_parser("restore", help="restore a verified backup (existing data moved aside, only with --force)"); s.add_argument("path"); s.add_argument("--force", action="store_true")
+    sub.add_parser("report", help="extraction quality measured from reviewer corrections (reviewed events only)")
     sub.add_parser("verify", help="read-only integrity check of the store (media hashes, links, decisions)")
     s = sub.add_parser("ingest-manifest", help="batch ingest from a CSV manifest (permission_note required per poster)")
     s.add_argument("manifest"); s.add_argument("--root", required=True); s.add_argument("--report", required=True)
@@ -110,6 +111,8 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"rejected: {exc}", file=sys.stderr); return 3
             print(ev.event_id, "->", ev.review_status, f"({status}, decision_id={did})")
             return 0
+        if a.cmd == "report":
+            print(json.dumps(ops.report(store), indent=2)); return 0
         if a.cmd == "verify":
             res = ops.verify_store(store); print(json.dumps(res, indent=2)); return 0 if res["ok"] else 6
         if a.cmd == "ingest-manifest":

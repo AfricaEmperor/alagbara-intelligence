@@ -286,3 +286,46 @@ def test_unknown_route_and_oversized_body(console):
     conn = http.client.HTTPConnection("127.0.0.1", c.port)
     conn.request("POST", "/upload", body=b"x", headers={"Cookie": c.cookie, "Content-Length": str(99 * 1024 * 1024), "Content-Type": "multipart/form-data; boundary=x"})
     assert conn.getresponse().status == 413
+
+
+def test_keep_alive_connection_survives_requests_answered_without_routing(console):
+    """Regression: a POST answered early (unauthenticated, 404, forged) must still have its body consumed, otherwise the
+    next request on the SAME connection is corrupted. Real browsers reuse connections; the one-shot test client did not."""
+    app, mk, _ = console
+    c = mk()
+    conn = http.client.HTTPConnection("127.0.0.1", c.port)
+    body = urlencode({"name": "Awa", "key": "wrong", "padding": "x" * 5000}).encode()
+    for path, expect in (("/login", 303), ("/upload", 401), ("/no-such-route", 404), ("/sources/approve", 401)):
+        conn.request("POST", path, body=body, headers={"Content-Type": "application/x-www-form-urlencoded"})
+        r = conn.getresponse(); r.read()
+        assert r.status == expect, (path, r.status)
+        conn.request("GET", "/health")                                         # same socket: must be parsed cleanly
+        r = conn.getresponse()
+        assert r.status == 200 and json.loads(r.read()) == {"status": "ok"}, path
+    # forged request with a body, then a valid request on the same connection
+    k = mk(); k.login()
+    conn2 = http.client.HTTPConnection("127.0.0.1", k.port)
+    conn2.request("POST", "/publish", body=body, headers={"Content-Type": "application/x-www-form-urlencoded", "Cookie": k.cookie})
+    r = conn2.getresponse(); r.read(); assert r.status == 403                  # no CSRF token
+    conn2.request("GET", "/", headers={"Cookie": k.cookie})
+    assert conn2.getresponse().status == 200
+    # oversized: refused and the connection is closed rather than left in an undefined state
+    conn3 = http.client.HTTPConnection("127.0.0.1", k.port)
+    conn3.request("POST", "/upload", body=b"x", headers={"Cookie": k.cookie, "Content-Length": str(99 * 1024 * 1024), "Content-Type": "multipart/form-data; boundary=x"})
+    r = conn3.getresponse(); r.read()
+    assert r.status == 413 and r.getheader("Connection") == "close"
+
+
+def test_browser_style_same_origin_posts_work_and_null_origin_is_refused(console):
+    """Browsers send Origin on form posts. With 'Referrer-Policy: no-referrer' they send 'Origin: null' instead, which
+    would lock every real user out; the console uses 'same-origin' and still refuses a null/foreign Origin."""
+    app, mk, _ = console
+    c = mk()
+    s, h, _ = c.req("GET", "/login")
+    assert h["Referrer-Policy"] == "same-origin"
+    host = f"127.0.0.1:{c.port}"
+    s, h, _ = c.req("POST", "/login", {"name": "Awa", "key": KEY}, headers={"Origin": f"http://{host}", "Host": host})
+    assert s == 303 and h["Location"] == "/"
+    k = mk(); k.login()
+    assert k.req("POST", "/sources/register", {"source_id": "abc-def", "label": "x"}, headers={"Origin": "null"})[0] == 403
+    assert k.req("POST", "/sources/register", {"source_id": "abc-def", "label": "x"}, headers={"Origin": f"http://{host}"})[0] == 303

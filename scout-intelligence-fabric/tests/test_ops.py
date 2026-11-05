@@ -133,3 +133,29 @@ def test_cli_backup_verify_restore_round_trip(full, tmp_path, capsys):
     assert cli(["--data", str(tmp_path / "new"), "restore", str(tmp_path / "b")]) == 0
     assert cli(["--data", str(tmp_path / "new"), "verify"]) == 0
     assert cli(["--data", root, "restore", str(tmp_path / "b")]) == 5              # refuses to clobber live data
+
+
+def test_report_measures_only_reviewed_events_from_reviewer_corrections(store, registry, poster):
+    from ana_engine.curation import apply_correction
+    # event 1: ANA read title wrongly (corrected), missed the organizer (filled by human), read the venue correctly; approved
+    a = run_upload(store, registry, poster("a.png", "NUIT AFRO\n28/11/2026\nDe 22h à 04h\nLieu : Club Exemple, Haie Vive\nDJ Alpha\n", 1), "src-upload-1", P)["event_id"]
+    apply_correction(store, a, {"title": "NUIT AFRO VOL. 3", "organizer": "Studio Fictif", "ticket": "!unknown"}, "operator:Awa", "", "cor-rep-0001-aaaa", store.event_version(a))
+    store.review_decision(a, "approve", "operator:Awa", "", "dec-rep-0001-aaaa", store.event_version(a))
+    # event 2: reviewed and rejected, no corrections
+    b = run_upload(store, registry, poster("b.png", "BRUNCH\n20/12/2026\nLieu : Bar Fictif\n", 2), "src-upload-1", P)["event_id"]
+    store.review_decision(b, "reject", "operator:Awa", "", "dec-rep-0002-bbbb", store.event_version(b))
+    # event 3: NOT reviewed: must not influence anything
+    run_upload(store, registry, poster("c.png", "KARAOKE\n21/12/2026\nLieu : Bar Zed\n", 3), "src-upload-1", P)
+    r = ops.report(store)
+    assert r["events"] == 3 and r["reviewed_events"] == 2 and r["status"]["approved"] == 1 and r["status"]["rejected"] == 1 and r["status"]["pending"] == 1
+    f = r["fields"]
+    assert f["title"]["read"] == 2 and f["title"]["wrong_when_read"] == 1 and f["title"]["wrong_when_read_rate"] == 0.5
+    assert f["organizer"]["read"] == 0 and f["organizer"]["filled_by_human"] == 1
+    assert f["venue"]["read"] == 2 and f["venue"]["wrong_when_read"] == 0
+    assert f["start_date"]["read"] == 2 and f["start_date"]["wrong_when_read"] == 0
+    assert r["median_minutes_upload_to_first_decision"] is not None and r["median_minutes_upload_to_first_decision"] >= 0
+
+
+def test_report_with_nothing_reviewed_is_empty_not_perfect(store):
+    r = ops.report(store)
+    assert r["reviewed_events"] == 0 and all(d["read_rate"] is None for d in r["fields"].values())

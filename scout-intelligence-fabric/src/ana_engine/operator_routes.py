@@ -506,7 +506,12 @@ def make_handler(app: OperatorApp):
         for b in sorted(bdir.glob("backup-*"), reverse=True)[:10] if bdir.is_dir() else []:
             pr = ops.verify_backup(b)
             rows += f'<tr><td><code>{esc(b.name)}</code></td><td><span class="badge {"ok" if not pr else "bad"}">{"verified" if not pr else "FAILED"}</span></td></tr>'
-        body = (f'<h2>Integrity check</h2><p><span class="badge {"ok" if res["ok"] else "bad"}">{"all checks passed" if res["ok"] else str(len(res["problems"])) + " problem(s)"}</span> {esc(res["counts"])}</p>{"<ul>" + probs + "</ul>" if probs else ""}'
+        with store_ctx(app) as st2:
+            rep = ops.report(st2)
+        frows = "".join(f'<tr><td>{esc(f)}</td><td>{d["read"]}</td><td>{d["wrong_when_read"]}</td><td>{d["filled_by_human"]}</td><td>{d["cleared"]}</td><td>{esc(d["wrong_when_read_rate"]) if d["wrong_when_read_rate"] is not None else "—"}</td></tr>' for f, d in rep["fields"].items())
+        quality = (f'<h2>Extraction quality (measured from your corrections)</h2><p class="mut">{rep["reviewed_events"]} reviewed event(s) of {rep["events"]}. {esc(rep["note"])}</p>'
+                   f'<table><tr><th>Field</th><th>Read by ANA</th><th>Replaced by you</th><th>Filled by you</th><th>Cleared</th><th>Wrong when read</th></tr>{frows}</table>')
+        body = (quality + f'<h2>Integrity check</h2><p><span class="badge {"ok" if res["ok"] else "bad"}">{"all checks passed" if res["ok"] else str(len(res["problems"])) + " problem(s)"}</span> {esc(res["counts"])}</p>{"<ul>" + probs + "</ul>" if probs else ""}'
                 f'<h2>Backup</h2><form method="post" action="/backup">{app.csrf(r.s)}<button class="go">Back up now (database + originals + manifest)</button></form>'
                 f'<table><tr><th>Backup</th><th>Hash check</th></tr>{rows or "<tr><td colspan=2 class=mut>No backups yet.</td></tr>"}</table>'
                 f'<p class="mut">Restore from the command line: <code>radar restore PATH --force</code> (existing data is moved aside, never deleted). Feed recovery: <b>Publish</b> again; the feed is always rebuilt from the database.</p>'
@@ -539,7 +544,8 @@ def make_handler(app: OperatorApp):
         def _finish(self, resp: Response, path: str):
             self.send_response(resp.status)
             hdrs = {"Content-Type": resp.ctype, "Content-Length": str(len(resp.body)), "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff",
-                    "X-Frame-Options": "DENY", "Referrer-Policy": "no-referrer",
+                    "X-Frame-Options": "DENY", "Referrer-Policy": "same-origin",   # NOT no-referrer: that makes browsers send "Origin: null" on form posts, which the same-origin check must refuse
+                    
                     "Content-Security-Policy": "default-src 'self'; img-src 'self'; media-src 'self'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'", **resp.headers}
             for k, v in hdrs.items():
                 self.send_header(k, v)
@@ -554,6 +560,18 @@ def make_handler(app: OperatorApp):
             u = urlparse(self.path)
             path, q = u.path, parse_qs(u.query)
             try:
+                # ALWAYS consume the request body first. Answering a POST without reading it leaves its bytes on the
+                # keep-alive connection, where the browser's next request would be mis-parsed ("Unsupported method").
+                raw = b""
+                if method == "POST":
+                    try:
+                        n = int(self.headers.get("Content-Length") or 0)
+                    except ValueError:
+                        n = -1
+                    if n < 0 or n > MAX_BODY:
+                        self.close_connection = True                       # cannot drain it: end the connection after replying
+                        return self._finish(Response("request too large" if n > 0 else "bad request", 413 if n > 0 else 400, {"Connection": "close"}, ctype="text/plain"), path)
+                    raw = self.rfile.read(n)
                 sid, s = app.session_of(self)
                 for m, pat, fn, public in routes:
                     mt = pat.match(path)
@@ -566,10 +584,6 @@ def make_handler(app: OperatorApp):
                         origin = self.headers.get("Origin")
                         if origin and urlparse(origin).netloc != self.headers.get("Host"):
                             return self._finish(Response("cross-site request refused", 403, ctype="text/plain"), path)
-                        n = int(self.headers.get("Content-Length") or 0)
-                        if n > MAX_BODY or n < 0:
-                            return self._finish(Response("request too large", 413, ctype="text/plain"), path)
-                        raw = self.rfile.read(n)
                         ct = self.headers.get("Content-Type", "")
                         if ct.startswith("multipart/form-data"):
                             form, files = parse_multipart(ct, raw)
