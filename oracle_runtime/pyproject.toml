@@ -5,7 +5,7 @@ build-backend="setuptools.build_meta"
 name="alagbara-oracle-runtime"
 version="0.1.0"
 requires-python=">=3.11"
-dependencies=["jsonschema[format]>=4.22,<5"]
+dependencies=["jsonschema[format]>=4.22,<5","PyYAML>=6.0,<7"]
 [project.optional-dependencies]
 dev=["pytest>=8,<9"]
 [tool.pytest.ini_options]
