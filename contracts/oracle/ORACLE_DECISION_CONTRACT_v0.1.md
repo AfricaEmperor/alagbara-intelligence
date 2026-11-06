@@ -196,9 +196,9 @@ Invariants:
 
 ## 14. Implementation boundary
 
-This document defines the normative contract. A first non-production runtime slice now exists under `oracle_runtime/`: JSON Schema validation with cross-field governance checks, synthetic fixtures, a SQLite append-only hash-chained event ledger, a read-only SCOUT observation importer, a fail-closed CONTROL provider port, a verified-executor registry port, and a MEMORY outcome projection port.
+This document defines the normative contract. A first non-production runtime slice now exists under `oracle_runtime/`: JSON Schema validation with cross-field governance checks, synthetic fixtures, a SQLite append-only hash-chained event ledger, a read-only SCOUT observation importer, a read-only adapter for the Power Enterprise Control Room authority policy and repository registry, a separate fail-closed CONTROL approval-provider port, a verified-executor registry port, and a MEMORY outcome projection port.
 
-The runtime does **not** establish that ORACLE is production-ready. No authoritative CONTROL provider, Zuberi endpoint, external MEMORY sink, live database, production migration, scoring model, scheduler, or production integration is connected. The local SQLite ledger is not tamper-proof against an administrator able to replace its file. CI has been registered, but the first GitHub Actions run failed before job steps started (runner id 0); tests have not yet been observed executing.
+The runtime does **not** establish that ORACLE is production-ready. No authoritative CONTROL approval provider or live approval endpoint, Zuberi endpoint, external MEMORY sink, live database, production migration, scoring model, scheduler, or production integration is connected. The read-only CONTROL policy reader evaluates the repository registry and deny-by-default policy; it does not grant mutation authority. The local SQLite ledger is not tamper-proof against an administrator able to replace its file. CI has been registered, but the first GitHub Actions run failed before job steps started (runner id 0); tests have not yet been observed executing.
 
 Remaining stages:
 1. Validate this contract with domain owners and governance owner.
