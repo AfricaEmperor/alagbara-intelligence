@@ -1,0 +1,11 @@
+{"_note": "SYNTHETIC fixtures only. Real sources need a recorded authorization (basis + reference) before enabled=true.",
+ "sources": [
+  {"id": "synthetic-lagos", "city": "Lagos", "enabled": true, "allowed_hosts": ["lagos-fixture.test"],
+   "collection_method": "synthetic_fixture",
+   "authorization": {"basis": "synthetic_fixture", "reference": "FIXTURE-LAGOS-001", "granted_by": "test-suite"}},
+  {"id": "synthetic-cotonou", "city": "Cotonou", "enabled": true, "allowed_hosts": ["cotonou-fixture.test"],
+   "collection_method": "synthetic_fixture",
+   "authorization": {"basis": "synthetic_fixture", "reference": "FIXTURE-COTONOU-001", "granted_by": "test-suite"}},
+  {"id": "unauthorized-example", "city": "Lagos", "enabled": false, "allowed_hosts": ["example.org"],
+   "authorization": {}}
+ ]}

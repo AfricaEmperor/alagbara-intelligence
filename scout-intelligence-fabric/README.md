@@ -27,3 +27,10 @@ Each record preserves source URL, collection method, adapter, timestamps, captur
 ## Next
 
 Add a reviewed source-specific adapter, raw-response retention with integrity hashes, and tests against controlled fixtures before enabling recurring collection.
+
+## SCOUT intake → PULSE candidate bundles
+
+`scout-intake --registry fixtures/registry.synthetic.json --source synthetic-lagos --url <url> --html-file <file> -o bundle.json`
+turns locally supplied HTML from an **authorized, enabled** source (recorded authorization basis + reference, allowed host)
+into a `scout-candidate/0.1` bundle: observation, sha256 raw-record reference, and a schema.org venue/event candidate.
+It performs no network access. Bundles are consumed by `pulse-l1` (`PIPELINE.md`). Fixtures are synthetic.
