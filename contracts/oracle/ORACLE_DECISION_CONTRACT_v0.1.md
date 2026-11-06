@@ -196,16 +196,18 @@ Invariants:
 
 ## 14. Implementation boundary
 
-This document defines a contract, not a claim that ORACLE is implemented. The current repository has a SCOUT Intelligence Fabric and associated application surfaces; this change does not create an ORACLE runtime, scoring model, scheduler, database tables, API endpoints, agent identity, or production integration.
+This document defines the normative contract. A first non-production runtime slice now exists under `oracle_runtime/`: JSON Schema validation with cross-field governance checks, synthetic fixtures, a SQLite append-only hash-chained event ledger, a read-only SCOUT observation importer, a fail-closed CONTROL provider port, a verified-executor registry port, and a MEMORY outcome projection port.
 
-Implementation should proceed in bounded stages:
+The runtime does **not** establish that ORACLE is production-ready. No authoritative CONTROL provider, Zuberi endpoint, external MEMORY sink, live database, production migration, scoring model, scheduler, or production integration is connected. The local SQLite ledger is not tamper-proof against an administrator able to replace its file. CI has been registered, but the first GitHub Actions run failed before job steps started (runner id 0); tests have not yet been observed executing.
+
+Remaining stages:
 1. Validate this contract with domain owners and governance owner.
-2. Add JSON Schema validation and representative fixtures.
-3. Add immutable decision/audit persistence in a non-production environment.
-4. Add a read-only evidence adapter for one domain.
-5. Add authorization checks against the authoritative CONTROL policy.
-6. Add a handoff adapter to a verified executor endpoint.
-7. Add outcome reconciliation and calibration.
+2. Obtain successful runtime CI execution and resolve runner startup failures.
+3. Add non-production persistence integration with managed storage and independent access controls.
+4. Connect the read-only SCOUT adapter to a verified observation feed.
+5. Register the authoritative CONTROL policy provider and verify real approval events.
+6. Register Zuberi's actual runtime identity, endpoint and least-privilege permissions.
+7. Connect the authorized MEMORY sink, then add outcome reconciliation and confidence calibration.
 
 ## 15. Versioning
 
