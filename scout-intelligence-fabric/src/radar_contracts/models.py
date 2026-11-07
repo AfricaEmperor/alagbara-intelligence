@@ -4,7 +4,7 @@ Rules enforced here (see validate_* functions):
   * every record distinguishes OBSERVED / DERIVED / UNVERIFIED / UNKNOWN
   * every event field keeps its source references (FieldClaim.evidence_ids)
   * conflicting claims are preserved, never overwritten
-  * timezone is always Africa/Porto-Novo; city is always Cotonou for v1
+  * market identity and timezone are explicit and validated against the market registry
 """
 from __future__ import annotations
 
