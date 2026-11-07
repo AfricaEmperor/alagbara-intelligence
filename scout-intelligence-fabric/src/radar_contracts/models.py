@@ -94,6 +94,7 @@ class Venue:
     verified_by: str | None = None
     verified_at: str | None = None
     merged_into: str | None = None
+    market_id: str = "cotonou"
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -136,6 +137,7 @@ class Event:
     contradictions: list[dict[str, Any]] = field(default_factory=list)
     duplicate_candidates: list[str] = field(default_factory=list)
     contract_version: str = CONTRACT_VERSION
+    market_id: str = "cotonou"
 
     def to_dict(self) -> dict[str, Any]:
         d = asdict(self)
@@ -204,8 +206,13 @@ def validate_contact(c: dict[str, Any]) -> None:
 def validate_venue(v: Venue) -> None:
     if not v.venue_id or not v.name:
         raise ContractError("venue_id and name are required")
-    if v.city != CITY:
-        raise ContractError(f"v1 venues must be in {CITY}")
+    from .markets import get_market
+    try:
+        market = get_market(v.market_id)
+    except (ValueError, RuntimeError) as exc:
+        raise ContractError(str(exc)) from exc
+    if v.city != market.city:
+        raise ContractError(f"venue city {v.city!r} does not match market {v.market_id!r} ({market.city})")
     if v.verification_status not in VERIFICATION_STATUSES:
         raise ContractError(f"invalid verification_status {v.verification_status!r}")
     if not v.source_references:
@@ -226,8 +233,15 @@ def validate_venue(v: Venue) -> None:
 def validate_event(ev: Event) -> None:
     if not ev.event_id:
         raise ContractError("event_id is required")
-    if ev.timezone != TIMEZONE:
-        raise ContractError(f"timezone must be {TIMEZONE}")
+    from .markets import get_market
+    try:
+        market = get_market(ev.market_id)
+    except (ValueError, RuntimeError) as exc:
+        raise ContractError(str(exc)) from exc
+    if ev.city != market.city:
+        raise ContractError(f"event city {ev.city!r} does not match market {ev.market_id!r} ({market.city})")
+    if ev.timezone != market.timezone:
+        raise ContractError(f"timezone for {ev.market_id} must be {market.timezone}")
     if ev.review_status not in REVIEW_STATUSES:
         raise ContractError(f"invalid review_status {ev.review_status!r}")
     if ev.status not in EVENT_STATUSES:
