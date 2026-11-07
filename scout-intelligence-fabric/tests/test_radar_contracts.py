@@ -78,3 +78,42 @@ def test_json_schema_required_fields_match_dataclasses():
     assert set(venue_schema["required"]) <= set(Venue.__dataclass_fields__)
     evid = json.loads((schema_dir / "evidence.schema.json").read_text())
     assert set(evid["required"]) <= set(EvidenceRecord.__dataclass_fields__)
+
+
+
+def test_market_aware_contract_accepts_lagos_records():
+    lagos_venue = Venue(
+        "lag-v1", "Lekki Venue", "Lekki", None, None, None, "club", ["obs-lag"],
+        city="Lagos", market_id="lagos",
+    )
+    validate_venue(lagos_venue)
+    lagos_event = ev(
+        event_id="lag-e1",
+        timezone="Africa/Lagos",
+        city="Lagos",
+        market_id="lagos",
+        venue_id="lag-v1",
+        start_at="2026-11-14T22:00:00+01:00",
+    )
+    validate_event(lagos_event)
+
+
+def test_market_aware_contract_rejects_cross_market_city_and_timezone():
+    with pytest.raises(ContractError, match="does not match market"):
+        validate_venue(Venue(
+            "bad-v1", "Wrong city venue", "Lekki", None, None, None, "club", ["obs"],
+            city="Cotonou", market_id="lagos",
+        ))
+    with pytest.raises(ContractError, match="timezone for lagos"):
+        validate_event(ev(city="Lagos", market_id="lagos", timezone="Africa/Porto-Novo"))
+    with pytest.raises(ContractError, match="does not match market"):
+        validate_event(ev(city="Cotonou", market_id="lagos", timezone="Africa/Lagos"))
+
+
+def test_existing_contract_defaults_remain_cotonou():
+    legacy_event = ev()
+    legacy_venue = Venue("v1", "Club", "Haie Vive", None, None, None, None, ["o1"])
+    assert legacy_event.market_id == "cotonou"
+    assert legacy_venue.market_id == "cotonou"
+    validate_event(legacy_event)
+    validate_venue(legacy_venue)
