@@ -1,0 +1,137 @@
+
+GROUP                             CASE                                                          EXPECT  GOT     RESULT
+unauthenticated                   GET /radar                                                    307     307     PASS
+unauthenticated                   GET /radar/review                                             307     307     PASS
+unauthenticated                   GET /radar/venues                                             307     307     PASS
+unauthenticated                   GET /radar/venues/ven_z                                       307     307     PASS
+unauthenticated                   GET /radar/event/evt_a                                        307     307     PASS
+unauthenticated                   GET media                                                     401     401     PASS
+unauthenticated                   POST /api/radar/review                                        401     401     PASS
+invalid token                     GET /radar                                                    307     307     PASS
+invalid token                     GET /radar/review                                             307     307     PASS
+invalid token                     GET /radar/venues                                             307     307     PASS
+invalid token                     GET /radar/venues/ven_z                                       307     307     PASS
+invalid token                     GET /radar/event/evt_a                                        307     307     PASS
+invalid token                     GET media                                                     401     401     PASS
+invalid token                     POST review                                                   401     401     PASS
+non-reviewer (no role)            GET /radar                                                    404     404     PASS
+non-reviewer (no role)            GET /radar/review                                             404     404     PASS
+non-reviewer (no role)            GET /radar/event/evt_a                                        404     404     PASS
+non-reviewer (no role)            GET media                                                     403     403     PASS
+non-reviewer (no role)            POST review                                                   403     403     PASS
+non-reviewer (role only in user_metadata)GET /radar                                                    404     404     PASS
+non-reviewer (role only in user_metadata)GET /radar/review                                             404     404     PASS
+non-reviewer (role only in user_metadata)GET /radar/event/evt_a                                        404     404     PASS
+non-reviewer (role only in user_metadata)GET media                                                     403     403     PASS
+non-reviewer (role only in user_metadata)POST review                                                   403     403     PASS
+non-reviewer (email unconfirmed)  GET /radar                                                    404     404     PASS
+non-reviewer (email unconfirmed)  GET /radar/review                                             404     404     PASS
+non-reviewer (email unconfirmed)  GET /radar/event/evt_a                                        404     404     PASS
+non-reviewer (email unconfirmed)  GET media                                                     403     403     PASS
+non-reviewer (email unconfirmed)  POST review                                                   403     403     PASS
+non-reviewer (unknown role value) GET /radar                                                    404     404     PASS
+non-reviewer (unknown role value) GET /radar/review                                             404     404     PASS
+non-reviewer (unknown role value) GET /radar/event/evt_a                                        404     404     PASS
+non-reviewer (unknown role value) GET media                                                     403     403     PASS
+non-reviewer (unknown role value) POST review                                                   403     403     PASS
+forged identity                   headers/body claiming reviewer, no credentials                401     401     PASS
+forged identity                   GET /radar with x-middleware-subrequest bypass header         307     307     PASS
+forged identity                   garbage session cookie + bypass header                        307     307     PASS
+authorized (reviewer)             GET /radar                                                    200     200     PASS
+authorized (reviewer)             GET /radar/review                                             200     200     PASS
+authorized (reviewer)             GET event detail                                              200     200     PASS
+authorized (admin)                GET /radar                                                    200     200     PASS
+authorized (admin)                GET /radar/review                                             200     200     PASS
+authorized (admin)                GET event detail                                              200     200     PASS
+media policy                      reviewer GET referenced media                                 200     200     PASS
+media policy                      reviewer GET file on disk not referenced by any event         404     404     PASS
+media policy                      path traversal                                                404     404     PASS
+media policy                      unknown hash                                                  404     404     PASS
+decision                          valid decision recorded                                       200     200     PASS
+decision                          replay same decisionId + same payload                         200     200     PASS
+decision                          same decisionId, different decision                           409     409     PASS
+decision                          same decisionId, different reviewer                           409     409     PASS
+decision                          stale versionSeen                                             409     409     PASS
+decision                          unknown event                                                 404     404     PASS
+decision                          invalid decisionId                                            400     400     PASS
+decision                          invalid decision value                                        400     400     PASS
+decision                          malformed JSON                                                400     400     PASS
+decision                          cross-site Origin                                             403     403     PASS
+decision                          Sec-Fetch-Site cross-site                                     403     403     PASS
+cookie session                    reviewer cookie session                                       200     200     PASS
+cookie session                    reviewer cookie -> media (same rule)                          200     200     PASS
+cookie session                    non-reviewer cookie session                                   404     404     PASS
+expired session                   cookie past its expiry -> redirect to sign-in, provider not   307     307     PASS
+expired session                   expired cookie -> media                                       401     401     PASS
+expired session                   provider says token expired -> pages redirect                 307     307     PASS
+expired session                   provider says token expired -> API 401, generic body          401     401     PASS
+expired session                   provider says token expired -> review POST 401                401     401     PASS
+invalid session                   malformed cookie (empty…)                                     401     401     PASS
+invalid session                   malformed cookie (%%%…)                                       401     401     PASS
+invalid session                   malformed cookie (e30…)                                       401     401     PASS
+invalid session                   malformed cookie (eyJhdCI6InRv…)                              401     401     PASS
+invalid session                   malformed cookie (AAAAAAAAAAAA…)                              401     401     PASS
+sign-in                           sign-in page reachable without a session, shows no data       200     200     PASS
+sign-in                           only the exact sign-in path is public (/radar/signin/extra)   307     307     PASS
+sign-in                           request code: authorized address -> generic 200               200     200     PASS
+sign-in                           request code: unknown address -> generic 200                  200     200     PASS
+sign-in                           request code: rate-limited address -> generic 200             200     200     PASS
+sign-in                           request code: malformed address -> generic 200                200     200     PASS
+sign-in                           request code: non-reviewer address -> generic 200             200     200     PASS
+sign-in                           request-code responses identical for every address (no enume  1       1       PASS
+sign-in                           no account can be created through sign-in (provider told cre  true    true    PASS
+sign-in                           verify: wrong code -> generic 401, no cookie                  401     401     PASS
+sign-in                           verify: unknown address -> generic 401, no cookie             401     401     PASS
+sign-in                           verify: valid code but NOT a reviewer -> generic 401, no coo  401     401     PASS
+sign-in                           verify: valid code, role only in user_metadata -> generic 40  401     401     PASS
+sign-in                           verify: valid code, email unconfirmed -> generic 401, no coo  401     401     PASS
+sign-in                           verify: non-numeric code -> generic 401, no cookie            401     401     PASS
+sign-in                           verify: authorized reviewer -> 200 + session cookie           200     200     PASS
+sign-in                           session cookie is HttpOnly, SameSite=Lax, Secure, Path=/, bo  true    true    PASS
+sign-in                           cookie holds the access token only (no refresh token stored)  true    true    PASS
+sign-in                           the issued cookie opens the Radar for the reviewer            200     200     PASS
+sign-in                           form post-login destination /radar/venues -> /radar/venues    303     303     PASS
+sign-in                           form post-login destination https://evil.example/x -> /radar  303     303     PASS
+sign-in                           form post-login destination //evil.example -> /radar/review   303     303     PASS
+sign-in                           form post-login destination /other -> /radar/review           303     303     PASS
+sign-in                           form verify failure redirects back with a generic error, no   303     303     PASS
+sign-in                           cross-site Origin on /auth/signin refused                     403     403     PASS
+sign-in                           cross-site Origin on /auth/verify refused                     403     403     PASS
+sign-in                           cross-site Origin on /auth/signout refused                    403     403     PASS
+sign-in                           malformed JSON -> generic 400                                 400     400     PASS
+sign-out                          sign-out clears the cookie (Max-Age=0) and calls provider lo  200     200     PASS
+sign-out                          replaying the old cookie after sign-out is denied (mock revo  200>401 200>401 PASS
+auth unconfigured                 GET /radar                                                    404     404     PASS
+auth unconfigured                 GET /radar/review                                             404     404     PASS
+auth unconfigured                 GET media                                                     503     503     PASS
+auth unconfigured                 POST review                                                   503     503     PASS
+auth unconfigured                 POST /auth/signin                                             503     503     PASS
+auth unconfigured                 POST /auth/verify                                             503     503     PASS
+auth unconfigured                 valid-looking cookie still denied                             404     404     PASS
+auth misconfigured                plain-http non-local provider URL refused -> fail closed      503     503     PASS
+auth provider down                GET /radar                                                    404     404     PASS
+auth provider down                GET media                                                     503     503     PASS
+auth provider down                cookie session -> media                                       503     503     PASS
+auth provider down                POST /auth/signin                                             503     503     PASS
+auth provider down                POST /auth/verify                                             503     503     PASS
+non-radar regression              GET /                                                         307     307     PASS
+non-radar regression              GET /lagos                                                    500     500     PASS
+non-radar regression              GET /lagos/event/x                                            500     500     PASS
+non-radar regression              GET /api/events                                               400     400     PASS
+non-radar regression              GET /api/events/x                                             500     500     PASS
+non-radar regression              GET /api/search?q=a                                           501     501     PASS
+non-radar regression              GET /api/venues/x                                             501     501     PASS
+non-radar regression              GET /api/cities                                               501     501     PASS
+non-radar regression              GET /content                                                  200     200     PASS
+non-radar regression              GET /creators                                                 200     200     PASS
+non-radar regression              GET /events                                                   200     200     PASS
+non-radar regression              GET /submissions                                              200     200     PASS
+non-radar regression              GET /venues                                                   200     200     PASS
+non-radar regression              GET /admin                                                    200     200     PASS
+static                            every loadFeed() caller authenticates first                   ok      ok      PASS
+static                            no shared static review token anywhere                        ok      ok      PASS
+logs                              server logs contain no tokens, emails or one-time codes       ok      ok      PASS
+logs                              denials are logged as structured events                       true    true    PASS
+static                            service-role key never referenced in radar code               ok      ok      PASS
+
+133/133 passed; mock IdP calls: 74

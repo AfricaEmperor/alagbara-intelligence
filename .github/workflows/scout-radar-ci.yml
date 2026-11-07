@@ -1,0 +1,33 @@
+name: SCOUT Radar CI
+
+on:
+  push:
+    branches: [main, "claude/ap-001-cotonou-event-venue-radar-kr48v6"]
+    paths:
+      - "scout-intelligence-fabric/**"
+      - ".github/workflows/scout-radar-ci.yml"
+  pull_request:
+    paths:
+      - "scout-intelligence-fabric/**"
+      - ".github/workflows/scout-radar-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: scout-intelligence-fabric
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: scout-intelligence-fabric/pyproject.toml
+      - name: Install package and test dependencies
+        run: python -m pip install -e ".[dev]"
+      - name: Run SCOUT and ANA tests
+        run: python -m pytest -q

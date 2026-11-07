@@ -1,0 +1,20 @@
+== Python (SCOUT, ANA, operator console, ops, PostgreSQL parity)
+........................................................................ [ 63%]
+..........................................                               [100%]
+114 passed in 14.29s
+== PostgreSQL migration suite + mutation check (disposable local database)
+
+SUMMARY: sql_tests 93 run, 0 failed; concurrency stale=1 same-id=1
+9/9 mutants killed
+== PULSE: install, typecheck, build, audit
+⚠ React 18 support is deprecated in Next.js 16 and will be removed in Next.js 17. Please upgrade to React 19. Learn more: https://nextjs.org/docs/messages/react-version
+found 0 vulnerabilities
+== PULSE: access matrix
+133/133 passed; mock IdP calls: 74
+== PULSE: cross-repo end-to-end
+24/24 passed
+== PULSE: UI (real browser)
+47/47 passed
+== PULSE: environment / secret boundary
+13/13 passed
+exit=0

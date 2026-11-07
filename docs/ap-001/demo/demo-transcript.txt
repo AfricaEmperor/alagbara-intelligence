@@ -1,0 +1,84 @@
+AP-001 ACCEPTANCE DEMONSTRATION
+poster: p1_nuit_afro.png (SYNTHETIC, fictional event)   OCR: Tesseract (fra+eng)
+
+[1] Access control before anything else
+   ✔  operator console without sign-in: redirected to login, no data
+   ✔  operator console with a wrong key: refused
+   ✔  operator signs in with the launch key and a name
+
+[2] Register and approve an authorized source (a named person approves)
+   ✔  source registered and PENDING: unusable until approved
+   ✔  upload from a pending source is rejected and stores nothing
+   ✔  source approved by the named operator
+
+[3] Upload the poster: SCOUT preserves the evidence, ANA extracts
+   ✔  poster accepted; event extracted
+   ✔  original preserved under its SHA-256 (hash equals the sha256 of the uploaded file)
+   ✔  original bytes retrievable and identical to the upload
+   ✔  capture time, source, permission note and 'unverified' state recorded
+   what ANA read:
+      Title                            NUIT AFRO                          derived
+      Date (YYYY-MM-DD)                2026-11-28                         derived
+      Start (HH:MM)                    22:00                              derived
+      End (HH:MM)                      04:00                              derived
+      Venue                            Club Exemple                       derived
+      District                         Haie Vive                          derived
+      Category                         club_night                         derived
+      Organizer                        STUDIO FICTIF                      derived
+      Performers (comma-separated)     DJ ALPHA, DJ BETA, Artiste Demo    derived
+      Ticket / price                   3000 fcfa                          derived
+      Description                      unknown                            unknown
+   ✔  ANA read venue, district and date; did not invent anything
+   ✔  end time crossing midnight derived correctly (22:00 -> 04:00 next day)
+
+[4] Operator reviews against the poster and corrects
+   title as read from the image: "NUIT AFRO"   (the poster shows "NUIT AFRO VOL. 3" over two lines)
+   ✔  correction saved
+   ✔  corrected title shown, flagged human-corrected; ANA's first reading kept in the claim list
+   ✔  double-submitting the same correction is ignored
+
+[5] Approve, persist, replay
+   ✔  approved
+   ✔  replaying the same decision 3 more times: reported as already recorded
+   ✔  no duplicate event, decision or audit record (events 1, human decisions 1, review audit rows 1, version 3)
+   ✔  a stale decision (made against an older version) is refused; the approval stands
+   ✔  store integrity check passes (hashes, links, history)
+
+[6] Publish the approved feed
+   ✔  feed holds exactly the approved event with its venue
+   ✔  start/end are Africa/Porto-Novo times, not guessed
+   ✔  provenance in the feed: source, sha256, permission note; corrected field named; no operator identity
+
+[7] PULSE: protected until a reviewer signs in
+   ✔  no credentials: redirected to sign-in, event not in the response
+   ✔  poster media without credentials: 401
+   ✔  signed-in user who is NOT a reviewer: denied (404), nothing shown
+   ✔  non-reviewer cannot even obtain a session (valid code, no reviewer role)
+   ✔  reviewer signs in with a one-time code (local mock identity provider) and receives an httpOnly session
+
+[8] PULSE shows the event with the correct venue, date and provenance
+   ✔  listing by exact date shows the corrected title, venue and district
+   ✔  indicators: reviewed/approved, upload source, origin not verified, corrected
+   ✔  detail: date, time range, venue link
+   ✔  detail provenance: source id, capture time, original file name, full sha256, permission note
+   ✔  detail says plainly that origin is not independently verified and who reviewed (a person, date)
+   ✔  field provenance: title 'corrected by a reviewer', others 'read from the image by OCR' (or typed transcription)
+   ✔  reviewer can open the original poster; bytes identical to the upload
+   ✔  venue detail lists the event and its source observation count; unverified venue is labelled so
+   ✔  another date: clear empty state
+
+[9] Existing (non-Radar) PULSE routes are intact
+   ✔  14 pre-existing routes return their pre-sprint status codes (no database in this demo: 500/501 are the original behavior)
+
+[10] Operator console protections
+   ✔  a forged request (bad CSRF token) cannot publish
+   ✔  a cross-site request cannot publish
+   ✔  operator console works in a REAL browser: login form -> dashboard
+   ✔  review page renders in the browser: poster, extraction, correction and decision forms
+   ✔  PULSE page renders in the phone browser: 3_pulse_radar_by_date
+   ✔  PULSE page renders in the phone browser: 4_pulse_event_detail
+   ✔  PULSE page renders in the phone browser: 5_pulse_venue_detail
+   ✔  screenshots captured (operator desktop, PULSE phone viewport)
+
+46/46 checks passed — DEMONSTRATION PASSED
+mock identity provider calls: 13   evidence written to /home/user/alagbara-intelligence/docs/ap-001/demo

@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://alagbara.example/schemas/radar/v1/event.schema.json",
+  "title": "Radar Event v1.0.0",
+  "type": "object",
+  "required": [
+    "event_id",
+    "title",
+    "description",
+    "start_at",
+    "end_at",
+    "timezone",
+    "venue_id",
+    "organizer_id",
+    "performer_ids",
+    "event_category",
+    "status",
+    "evidence_references",
+    "confidence",
+    "review_status",
+    "unknown_fields",
+    "contradictions"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string"
+    },
+    "title": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "description": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "start_at": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "ISO-8601; date-only when time unknown"
+    },
+    "end_at": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "timezone": {
+      "const": "Africa/Porto-Novo"
+    },
+    "venue_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "organizer_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "performer_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "event_category": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "status": {
+      "enum": [
+        "scheduled",
+        "cancelled",
+        "past",
+        "unknown"
+      ]
+    },
+    "evidence_references": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+    "confidence": {
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    "review_status": {
+      "enum": [
+        "pending",
+        "approved",
+        "rejected",
+        "correction_requested"
+      ]
+    },
+    "field_claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "field",
+          "value",
+          "state",
+          "evidence_ids"
+        ],
+        "properties": {
+          "state": {
+            "enum": [
+              "observed",
+              "derived",
+              "unverified",
+              "unknown"
+            ]
+          }
+        }
+      }
+    },
+    "unknown_fields": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "contradictions": {
+      "type": "array"
+    },
+    "duplicate_candidates": {
+      "type": "array"
+    }
+  }
+}

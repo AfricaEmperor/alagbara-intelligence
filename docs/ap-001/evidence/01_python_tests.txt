@@ -1,0 +1,9 @@
+$ pytest -v  (scout-intelligence-fabric)
+============================== 63 passed in 1.81s ==============================
+
+      1 
+      1 tests/test_acquire.py: 1
+      1 tests/test_contracts.py: 4
+      1 tests/test_radar_contracts.py: 13
+      1 tests/test_radar_flow.py: 18
+      1 tests/test_zr01_integrity.py: 27

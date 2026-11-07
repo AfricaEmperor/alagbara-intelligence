@@ -12,6 +12,7 @@ dependencies = []
 
 [project.scripts]
 scout-acquire = "scout_fabric.cli:main"
+radar = "ana_engine.cli:main"
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "ruff>=0.5"]
