@@ -2,7 +2,7 @@ name: SCOUT Radar CI
 
 on:
   push:
-    branches: [main, "claude/ap-001-cotonou-event-venue-radar-kr48v6"]
+    branches: [main, "claude/ap-001-cotonou-event-venue-radar-kr48v6", "feat/museops-pi-001-partner-intelligence"]
     paths:
       - "scout-intelligence-fabric/**"
       - ".github/workflows/scout-radar-ci.yml"

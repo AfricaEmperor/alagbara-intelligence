@@ -1,0 +1,221 @@
+{
+  "schema": "partner-fixture/0.1",
+  "fixture_id": "synthetic-a-awards-sponsorship",
+  "synthetic": true,
+  "title": "A (synthetic): brand sponsorship of an awards show under a parent organisation",
+  "as_of": "2026-11-12",
+  "focus": "brand_aurelia",
+  "note": "SYNTHETIC: every organisation, person and source here is fictional. It mirrors a structural case only and asserts nothing about real companies. Replace with the real research fixture via the same schema.",
+  "entities": [
+    {
+      "entity_id": "brand_aurelia",
+      "type": "BRAND",
+      "name": "Aurelia Agave"
+    },
+    {
+      "entity_id": "org_meridian",
+      "type": "ORGANIZATION",
+      "name": "Meridian Spirits Group"
+    },
+    {
+      "entity_id": "fn_marketing",
+      "type": "FUNCTION",
+      "name": "Marketing function, Meridian Spirits Group"
+    },
+    {
+      "entity_id": "person_okoro",
+      "type": "PERSON",
+      "name": "Adaeze Okoro"
+    },
+    {
+      "entity_id": "event_lsa24",
+      "type": "EVENT",
+      "name": "Lagos Screen Awards 2024"
+    },
+    {
+      "entity_id": "agency_lumen",
+      "type": "AGENCY",
+      "name": "Lumen Events Agency"
+    }
+  ],
+  "evidence": [
+    {
+      "key": "e1",
+      "source_id": "synthetic-trade-press",
+      "source_platform": "public_html",
+      "url": "https://fixtures.invalid/a/trade-press",
+      "collected_at": "2024-02-20T09:00:00+00:00",
+      "published_at": "2024-02-20",
+      "evidence_state": "observed",
+      "raw_text": "Meridian Spirits Group owns the Aurelia Agave brand, acquired in 2015. Adaeze Okoro leads the Marketing function at Meridian Spirits Group, which employs her."
+    },
+    {
+      "key": "e2",
+      "source_id": "synthetic-awards-site",
+      "source_platform": "public_html",
+      "url": "https://fixtures.invalid/a/awards-site",
+      "collected_at": "2024-03-04T09:00:00+00:00",
+      "published_at": "2024-03-04",
+      "evidence_state": "observed",
+      "raw_text": "Aurelia Agave is the official spirits partner of the Lagos Screen Awards, held 16 March 2024. The ceremony is produced by Lumen Events Agency."
+    },
+    {
+      "key": "e3",
+      "source_id": "synthetic-blog",
+      "source_platform": "public_html",
+      "url": "https://fixtures.invalid/a/blog",
+      "collected_at": "2024-04-02T09:00:00+00:00",
+      "published_at": "2024-04-02",
+      "evidence_state": "unverified",
+      "raw_text": "Reports that Aurelia Agave sponsored this year's Lagos Screen Awards are wrong; the spirits partner was another label."
+    }
+  ],
+  "relationships": [
+    {
+      "claim_id": "a-r1",
+      "subject": "org_meridian",
+      "relation": "OWNS",
+      "object": "brand_aurelia",
+      "evidence": [
+        "e1"
+      ],
+      "observed_at": "2024-02-20",
+      "state": "observed",
+      "raw_excerpt": "Meridian Spirits Group owns the Aurelia Agave brand",
+      "period": {
+        "start": "2015-01-01",
+        "end": null
+      },
+      "asserted": true,
+      "interpretation": ""
+    },
+    {
+      "claim_id": "a-r2",
+      "subject": "org_meridian",
+      "relation": "OWNS",
+      "object": "fn_marketing",
+      "evidence": [
+        "e1"
+      ],
+      "observed_at": "2024-02-20",
+      "state": "observed",
+      "raw_excerpt": "the Marketing function at Meridian Spirits Group",
+      "period": {
+        "start": null,
+        "end": null
+      },
+      "asserted": true,
+      "interpretation": ""
+    },
+    {
+      "claim_id": "a-r3",
+      "subject": "org_meridian",
+      "relation": "EMPLOYS",
+      "object": "person_okoro",
+      "evidence": [
+        "e1"
+      ],
+      "observed_at": "2024-02-20",
+      "state": "observed",
+      "raw_excerpt": "Meridian Spirits Group, which employs her",
+      "period": {
+        "start": null,
+        "end": null
+      },
+      "asserted": true,
+      "interpretation": ""
+    },
+    {
+      "claim_id": "a-r4",
+      "subject": "person_okoro",
+      "relation": "LEADS_FUNCTION",
+      "object": "fn_marketing",
+      "evidence": [
+        "e1"
+      ],
+      "observed_at": "2024-02-20",
+      "state": "observed",
+      "raw_excerpt": "Adaeze Okoro leads the Marketing function",
+      "period": {
+        "start": null,
+        "end": null
+      },
+      "asserted": true,
+      "interpretation": "Leading Marketing says nothing about who approves sponsorship spend."
+    },
+    {
+      "claim_id": "a-r5",
+      "subject": "brand_aurelia",
+      "relation": "ACTIVATES",
+      "object": "event_lsa24",
+      "evidence": [
+        "e2"
+      ],
+      "observed_at": "2024-03-04",
+      "state": "observed",
+      "raw_excerpt": "official spirits partner of the Lagos Screen Awards, held 16 March 2024",
+      "period": {
+        "start": "2024-03-16",
+        "end": "2024-03-16"
+      },
+      "asserted": true,
+      "interpretation": "One-off sponsorship of a 2024 edition; it is history, not a current need."
+    },
+    {
+      "claim_id": "a-r6",
+      "subject": "brand_aurelia",
+      "relation": "ACTIVATES",
+      "object": "event_lsa24",
+      "evidence": [
+        "e3"
+      ],
+      "observed_at": "2024-04-02",
+      "state": "unverified",
+      "raw_excerpt": "Reports that Aurelia Agave sponsored this year's Lagos Screen Awards are wrong",
+      "period": {
+        "start": "2024-03-01",
+        "end": "2024-03-31"
+      },
+      "asserted": false,
+      "interpretation": ""
+    },
+    {
+      "claim_id": "a-r7",
+      "subject": "agency_lumen",
+      "relation": "ORGANIZES",
+      "object": "event_lsa24",
+      "evidence": [
+        "e2"
+      ],
+      "observed_at": "2024-03-04",
+      "state": "observed",
+      "raw_excerpt": "produced by Lumen Events Agency",
+      "period": {
+        "start": "2024-03-16",
+        "end": "2024-03-16"
+      },
+      "asserted": true,
+      "interpretation": "The producer was present at the event; nothing shows it influenced the sponsorship."
+    }
+  ],
+  "attributes": [
+    {
+      "claim_id": "a-a1",
+      "entity": "brand_aurelia",
+      "attribute": "VISIBILITY_BIAS",
+      "value": "promotional-source skew",
+      "evidence": [
+        "e2"
+      ],
+      "observed_at": "2024-03-04",
+      "state": "derived",
+      "raw_excerpt": "official spirits partner",
+      "period": {
+        "start": "2024-03-04",
+        "end": "2024-03-31"
+      },
+      "asserted": true,
+      "interpretation": "The only positive source is the awards site, which publicises its own sponsors."
+    }
+  ]
+}

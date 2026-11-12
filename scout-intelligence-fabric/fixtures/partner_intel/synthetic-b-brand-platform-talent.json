@@ -1,0 +1,231 @@
+{
+  "schema": "partner-fixture/0.1",
+  "fixture_id": "synthetic-b-brand-platform-talent",
+  "synthetic": true,
+  "title": "B (synthetic): brand music platform with a performing artist and a talent agency",
+  "as_of": "2026-11-12",
+  "focus": "brand_hops",
+  "note": "SYNTHETIC: every organisation, person and source here is fictional. It mirrors a structural case only and asserts nothing about real companies. Replace with the real research fixture via the same schema.",
+  "entities": [
+    {
+      "entity_id": "brand_hops",
+      "type": "BRAND",
+      "name": "Hopsworth Lager"
+    },
+    {
+      "entity_id": "org_hbc",
+      "type": "ORGANIZATION",
+      "name": "Hopsworth Brewing Company"
+    },
+    {
+      "entity_id": "event_brewlab",
+      "type": "EVENT",
+      "name": "BrewLab Sessions Lagos"
+    },
+    {
+      "entity_id": "talent_kestrel",
+      "type": "TALENT",
+      "name": "DJ Kestrel"
+    },
+    {
+      "entity_id": "agency_northstar",
+      "type": "AGENCY",
+      "name": "Northstar Talent"
+    },
+    {
+      "entity_id": "agency_pivot",
+      "type": "AGENCY",
+      "name": "Pivot Management"
+    }
+  ],
+  "evidence": [
+    {
+      "key": "b1",
+      "source_id": "synthetic-trade-press",
+      "source_platform": "public_html",
+      "url": "https://fixtures.invalid/b/trade-press",
+      "collected_at": "2025-11-03T09:00:00+00:00",
+      "published_at": "2025-11-03",
+      "evidence_state": "observed",
+      "raw_text": "Hopsworth Brewing Company owns Hopsworth Lager. The company's BrewLab Sessions music platform ran in Lagos from October 2025 and is continuing into 2026."
+    },
+    {
+      "key": "b2",
+      "source_id": "synthetic-listing",
+      "source_platform": "public_html",
+      "url": "https://fixtures.invalid/b/listing",
+      "collected_at": "2025-10-12T09:00:00+00:00",
+      "published_at": "2025-10-12",
+      "evidence_state": "observed",
+      "raw_text": "DJ Kestrel headlined BrewLab Sessions Lagos on 11 October 2025. Booking is handled by Northstar Talent."
+    },
+    {
+      "key": "b3",
+      "source_id": "synthetic-interview",
+      "source_platform": "public_html",
+      "url": "https://fixtures.invalid/b/interview",
+      "collected_at": "2025-12-01T09:00:00+00:00",
+      "published_at": "2025-12-01",
+      "evidence_state": "unverified",
+      "raw_text": "Kestrel says Pivot Management handles all of the DJ's bookings and that Northstar Talent no longer books the DJ."
+    },
+    {
+      "key": "b4",
+      "source_id": "synthetic-company-statement",
+      "source_platform": "public_html",
+      "url": "https://fixtures.invalid/b/company-statement",
+      "collected_at": "2026-09-15T09:00:00+00:00",
+      "published_at": "2026-09-15",
+      "evidence_state": "observed",
+      "raw_text": "Hopsworth Brewing Company says its 2027 music budget for West Africa has been approved and it is looking for Lagos club partners for the BrewLab programme."
+    }
+  ],
+  "relationships": [
+    {
+      "claim_id": "b-r1",
+      "subject": "org_hbc",
+      "relation": "OWNS",
+      "object": "brand_hops",
+      "evidence": [
+        "b1"
+      ],
+      "observed_at": "2025-11-03",
+      "state": "observed",
+      "raw_excerpt": "Hopsworth Brewing Company owns Hopsworth Lager",
+      "period": {
+        "start": null,
+        "end": null
+      },
+      "asserted": true,
+      "interpretation": ""
+    },
+    {
+      "claim_id": "b-r2",
+      "subject": "org_hbc",
+      "relation": "ACTIVATES",
+      "object": "event_brewlab",
+      "evidence": [
+        "b1"
+      ],
+      "observed_at": "2025-11-03",
+      "state": "observed",
+      "raw_excerpt": "BrewLab Sessions music platform ran in Lagos from October 2025 and is continuing into 2026",
+      "period": {
+        "start": "2025-10-01",
+        "end": null
+      },
+      "asserted": true,
+      "interpretation": ""
+    },
+    {
+      "claim_id": "b-r3",
+      "subject": "talent_kestrel",
+      "relation": "PERFORMS_AT",
+      "object": "event_brewlab",
+      "evidence": [
+        "b2"
+      ],
+      "observed_at": "2025-10-12",
+      "state": "observed",
+      "raw_excerpt": "DJ Kestrel headlined BrewLab Sessions Lagos on 11 October 2025",
+      "period": {
+        "start": "2025-10-11",
+        "end": "2025-10-11"
+      },
+      "asserted": true,
+      "interpretation": ""
+    },
+    {
+      "claim_id": "b-r4",
+      "subject": "agency_northstar",
+      "relation": "REPRESENTS",
+      "object": "talent_kestrel",
+      "evidence": [
+        "b2"
+      ],
+      "observed_at": "2025-10-12",
+      "state": "observed",
+      "raw_excerpt": "Booking is handled by Northstar Talent",
+      "period": {
+        "start": "2025-10-12",
+        "end": "2025-12-31"
+      },
+      "asserted": true,
+      "interpretation": ""
+    },
+    {
+      "claim_id": "b-r5",
+      "subject": "agency_pivot",
+      "relation": "REPRESENTS",
+      "object": "talent_kestrel",
+      "evidence": [
+        "b3"
+      ],
+      "observed_at": "2025-12-01",
+      "state": "unverified",
+      "raw_excerpt": "Pivot Management handles all of the DJ's bookings",
+      "period": {
+        "start": "2025-12-01",
+        "end": null
+      },
+      "asserted": true,
+      "interpretation": ""
+    },
+    {
+      "claim_id": "b-r6",
+      "subject": "agency_northstar",
+      "relation": "REPRESENTS",
+      "object": "talent_kestrel",
+      "evidence": [
+        "b3"
+      ],
+      "observed_at": "2025-12-01",
+      "state": "unverified",
+      "raw_excerpt": "Northstar Talent no longer books the DJ",
+      "period": {
+        "start": "2025-12-01",
+        "end": null
+      },
+      "asserted": false,
+      "interpretation": "Single unverified interview; the earlier listing and this statement are both kept."
+    }
+  ],
+  "attributes": [
+    {
+      "claim_id": "b-a1",
+      "entity": "org_hbc",
+      "attribute": "COMMERCIAL_CAPACITY",
+      "value": "2027 West Africa music budget approved",
+      "evidence": [
+        "b4"
+      ],
+      "observed_at": "2026-09-15",
+      "state": "observed",
+      "raw_excerpt": "its 2027 music budget for West Africa has been approved",
+      "period": {
+        "start": "2026-09-15",
+        "end": "2027-12-31"
+      },
+      "asserted": true,
+      "interpretation": ""
+    },
+    {
+      "claim_id": "b-a2",
+      "entity": "org_hbc",
+      "attribute": "COMMERCIAL_NEED",
+      "value": "Lagos club partners for the BrewLab programme",
+      "evidence": [
+        "b4"
+      ],
+      "observed_at": "2026-09-15",
+      "state": "observed",
+      "raw_excerpt": "looking for Lagos club partners for the BrewLab programme",
+      "period": {
+        "start": "2026-09-15",
+        "end": "2027-12-31"
+      },
+      "asserted": true,
+      "interpretation": ""
+    }
+  ]
+}
