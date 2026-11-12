@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "source": {
+      "type": "string",
+      "enum": [
+        "android_notification",
+        "screenshot",
+        "shared_image",
+        "user_upload",
+        "api_response"
+      ]
+    },
+    "content": {
+      "type": "string",
+      "minLength": 1
+    },
+    "channel_trust": {
+      "type": "string",
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ]
+    }
+  },
+  "required": [
+    "source",
+    "content"
+  ],
+  "additionalProperties": false,
+  "$id": "urn:alagbara:museops:contract:0.1.0:raw-input",
+  "title": "MuseOps RawInput"
+}

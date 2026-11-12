@@ -1,0 +1,46 @@
+{
+  "name": "@alagbara/museops-core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MuseOps Core: provenance-first domain contracts (Source → Signal → Observation → ObservationSet → Pulse → Finding).",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./contracts/*": "./contracts/*"
+  },
+  "files": [
+    "dist",
+    "contracts"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "contracts:generate": "tsx scripts/generate-contracts.ts",
+    "contracts:check": "tsx scripts/generate-contracts.ts --check",
+    "build": "tsc -p tsconfig.build.json",
+    "validate": "npm run typecheck && npm run lint && npm run test && npm run contracts:check && npm run build"
+  },
+  "dependencies": {
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "@types/node": "^22.10.0",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
+    "eslint": "^9.17.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.3",
+    "typescript-eslint": "^8.18.0",
+    "vitest": "^2.1.8"
+  }
+}

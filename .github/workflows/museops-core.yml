@@ -1,0 +1,65 @@
+name: museops-core
+
+on:
+  push:
+    paths:
+      - "museops-core/**"
+      - "scout-intelligence-fabric/**"
+      - ".github/workflows/museops-core.yml"
+  pull_request:
+    paths:
+      - "museops-core/**"
+      - "scout-intelligence-fabric/**"
+      - ".github/workflows/museops-core.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  museops-core:
+    name: MuseOps Core (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ["20", "22"]
+    defaults:
+      run:
+        working-directory: museops-core
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: museops-core/package-lock.json
+      - name: Clean dependency installation
+        run: npm ci
+      - name: TypeScript compilation (type check)
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Unit, Zod validation and contract tests
+        run: npm test
+      - name: JSON Schema generation consistency
+        run: npm run contracts:check
+      - name: Production package build
+        run: npm run build
+
+  # Regression suite for the independent Scout fabric. MuseOps never modifies Scout;
+  # this job is deliberately separate so a Scout result cannot mask or be masked by MuseOps.
+  scout-regression:
+    name: Scout regression (pytest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: scout-intelligence-fabric
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install Scout with dev extras
+        run: python -m pip install -e ".[dev]"
+      - name: Run Scout tests
+        run: python -m pytest -q

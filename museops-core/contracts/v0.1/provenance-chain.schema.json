@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "finding_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "pulse_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "observation_set_ids": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "observation_ids": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "signal_ids": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "source_ids": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "source_types": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "required": [
+    "finding_id",
+    "pulse_id",
+    "observation_set_ids",
+    "observation_ids",
+    "signal_ids",
+    "source_ids",
+    "source_types"
+  ],
+  "additionalProperties": false,
+  "$id": "urn:alagbara:museops:contract:0.1.0:provenance-chain",
+  "title": "MuseOps ProvenanceChain"
+}

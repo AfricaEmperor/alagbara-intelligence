@@ -1,0 +1,61 @@
+{
+  "contract": "museops-core",
+  "contract_version": "0.1.0",
+  "schemas": [
+    {
+      "name": "RawInput",
+      "file": "raw-input.schema.json",
+      "sha256": "7b700da911de1d898f5b63966b05db1aec7a25d2707701759d84c9c5741a73cb"
+    },
+    {
+      "name": "SourceTypeDefinition",
+      "file": "source-type.schema.json",
+      "sha256": "ca761854007cd1ff4dcf8c85f899d5f872314880ff661bf7061b453993a1b987"
+    },
+    {
+      "name": "Source",
+      "file": "source.schema.json",
+      "sha256": "79e20d4afe27f050c02f734312afb9cb1ef120edfafcdc8f34aad38b1501958f"
+    },
+    {
+      "name": "Signal",
+      "file": "signal.schema.json",
+      "sha256": "fc6400a9f463fa52965953aba0557f07ef88237a5b50aa84337d2546df8ce1ef"
+    },
+    {
+      "name": "Observation",
+      "file": "observation.schema.json",
+      "sha256": "fad0ed2f06939ca85a68486fed47e95a88fc5bb93f85cbfecf7ce3f3d1542009"
+    },
+    {
+      "name": "Subject",
+      "file": "subject.schema.json",
+      "sha256": "627750d26dbb35e0d6115ca2ad7ec4c93f9d0fbb2ac62a7c4aa2be4f38f68ba4"
+    },
+    {
+      "name": "ExternalIdentity",
+      "file": "external-identity.schema.json",
+      "sha256": "d5c7a3d875f91491c5d2059c91dc9437e6dd24952d13362be0057d346a9c4953"
+    },
+    {
+      "name": "ObservationSet",
+      "file": "observation-set.schema.json",
+      "sha256": "9f68475b1ea55cc192173263bd9ee2f23e6e0672dbcc6ba276eef563c5f9ec8c"
+    },
+    {
+      "name": "Pulse",
+      "file": "pulse.schema.json",
+      "sha256": "9261dec697351959c542de27f566f6de0921a3713a7164227d180139e5fbac83"
+    },
+    {
+      "name": "Finding",
+      "file": "finding.schema.json",
+      "sha256": "bfc60ead385d249350c5cbc921af0dac86123af3230db074fbf5975cfbefaf30"
+    },
+    {
+      "name": "ProvenanceChain",
+      "file": "provenance-chain.schema.json",
+      "sha256": "700ef9e434d30b2b1dd00a9b2d11bd0a0758cfa79c751dde9f73fb81a75001b6"
+    }
+  ]
+}

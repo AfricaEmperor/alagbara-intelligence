@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "subject_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "platform": {
+      "type": "string",
+      "enum": [
+        "tiktok"
+      ]
+    },
+    "identifier_type": {
+      "type": "string",
+      "enum": [
+        "account_id",
+        "handle",
+        "normalized_hashtag"
+      ]
+    },
+    "value": {
+      "type": "string",
+      "minLength": 1
+    },
+    "identity_link_status": {
+      "type": "string",
+      "enum": [
+        "observed",
+        "confirmed",
+        "linked"
+      ]
+    }
+  },
+  "required": [
+    "id",
+    "subject_id",
+    "platform",
+    "identifier_type",
+    "value",
+    "identity_link_status"
+  ],
+  "additionalProperties": false,
+  "$id": "urn:alagbara:museops:contract:0.1.0:external-identity",
+  "title": "MuseOps ExternalIdentity"
+}
