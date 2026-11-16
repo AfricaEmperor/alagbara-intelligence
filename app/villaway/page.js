@@ -74,7 +74,7 @@ export default function VillawayDashboard() {
           <dl className={styles.facts}>
             <div><dt>Repository</dt><dd>AfricaEmperor/alagbara-intelligence</dd></div>
             <div><dt>Work branch</dt><dd><code>feat/villaway-001-acquisition-intelligence</code></dd></div>
-            <div><dt>Latest known commit</dt><dd><code>f3560e1</code> · dashboard styling</dd></div>
+            <div><dt>Dashboard commit</dt><dd><code>f3560e1</code> · dashboard styling</dd></div>
             <div><dt>Base branch</dt><dd><code>feat/museops-pi-001-partner-intelligence</code></dd></div>
             <div><dt>CI / tests</dt><dd><State value="UNKNOWN" /> <span className={styles.inlineNote}>No run evidence attached</span></dd></div>
           </dl>
