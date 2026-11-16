@@ -4,13 +4,12 @@ const gates = [
   { id: 'SPEC', title: 'Dashboard specification + data contract', lane: 'FOUNDATION', state: 'READY_FOR_REVIEW', note: 'Committed to the isolated VILLAWAY branch; review evidence still required.' },
   { id: 'UI', title: 'Isolated dashboard interface', lane: 'ENGINEERING', state: 'IN_PROGRESS', note: 'Read-only route; no live commercial connection.' },
   { id: 'SRC', title: 'Authoritative source adapters', lane: 'IN_PROGRESS', note: 'GitHub metadata is partially verified; VILLAWAY commercial read model is not connected.' },
-  { id: 'QA', title: 'Build, responsive and contract validation', lane: 'GOVERNANCE', state: 'NOT_STARTED', note: 'Must be executed in the repository runtime before release.' },
+  { id: 'QA', title: 'Build and route validation', lane: 'GOVERNANCE', state: 'PARTIAL', note: 'Production build passed and /villaway returned HTTP 200; automated CI and formal data-contract validation remain unverified.' },
   { id: 'PILOT', title: 'One attributable paid hospitality transaction', lane: 'COMMERCIAL', state: 'NOT_STARTED', note: 'No commercial transaction evidence is connected to this dashboard.' }
 ];
 
 const blockers = [
   { severity: 'HIGH', title: 'No verified VILLAWAY commercial read model', detail: 'Buyer, requirement, property, booking and commission records cannot yet be presented as live operational data.', state: 'OPEN' },
-  { severity: 'HIGH', title: 'Dashboard runtime validation pending', detail: 'The Next.js build and browser review have not yet been run in the repository environment.', state: 'OPEN' },
   { severity: 'MEDIUM', title: 'Access-control readiness not established', detail: 'Keep this surface synthetic/read-only until server-side authorization and tenant boundaries are verified.', state: 'OPEN' }
 ];
 
@@ -53,7 +52,7 @@ export default function VillawayDashboard() {
         <div className={styles.metrics}>
           <Metric label="Current phase" value="Foundation" detail="Specification → isolated interface" />
           <Metric label="Next gate" value="Review" detail="Approve spec and data contract" tone="blue" />
-          <Metric label="Critical blockers" value="3" detail="Source connection, runtime QA, access controls" tone="amber" />
+          <Metric label="Open blockers" value="2" detail="Commercial source connection and access controls" tone="amber" />
           <Metric label="Paid transactions" value="Unknown" detail="Commercial source not connected" tone="neutral" />
         </div>
       </section>
@@ -74,7 +73,7 @@ export default function VillawayDashboard() {
           <dl className={styles.facts}>
             <div><dt>Repository</dt><dd>AfricaEmperor/alagbara-intelligence</dd></div>
             <div><dt>Work branch</dt><dd><code>feat/villaway-001-acquisition-intelligence</code></dd></div>
-            <div><dt>Dashboard commit</dt><dd><code>f3560e1</code> · dashboard styling</dd></div>
+            <div><dt>Dashboard source</dt><dd>Current feature branch · see repository history for exact revision</dd></div>
             <div><dt>Base branch</dt><dd><code>feat/museops-pi-001-partner-intelligence</code></dd></div>
             <div><dt>CI / tests</dt><dd><State value="UNKNOWN" /> <span className={styles.inlineNote}>No run evidence attached</span></dd></div>
           </dl>
