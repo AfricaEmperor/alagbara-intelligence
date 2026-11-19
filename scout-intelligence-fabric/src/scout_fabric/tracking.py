@@ -239,8 +239,8 @@ def scan_tracking(url: str) -> dict[str, object]:
             "subject": detection.name,
             "claim": f"{detection.name} tracking infrastructure was fingerprinted in the returned page.",
             "state": "observed",
-            "confidence": detection.confidence,
             "attributes": {
+                "confidence": detection.confidence,
                 "technology_id": detection.technology_id,
                 "category": detection.category,
                 "matched_evidence": detection.evidence,
