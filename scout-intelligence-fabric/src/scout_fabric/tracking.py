@@ -105,11 +105,7 @@ SIGNATURES: list[dict[str, object]] = [
         "rules": [r"sc-static\.net/scevent\.min\.js", r"\bsnaptr\s*\(", r"tr\.snapchat\.com"],
         "interpretation": "Snap Pixel infrastructure appears present.",
     },
-    {
-        "id": "pinterest_tag", "name": "Pinterest Tag", "category": "advertising",
-        "rules": [r"\bpintrk\s*\(", r"s\.pinimg\.com/ct/core\.js", r"ct\.pinterest\.com"],
-        "interpretation": "Pinterest Tag infrastructure appears present.",
-    },
+
     {
         "id": "microsoft_clarity", "name": "Microsoft Clarity", "category": "behavior_analytics",
         "rules": [r"clarity\.ms/tag", r"\bclarity\s*\(\s*['\"]init"],
@@ -120,21 +116,9 @@ SIGNATURES: list[dict[str, object]] = [
         "rules": [r"static\.hotjar\.com", r"\bhj\s*\(" , r"hotjar\.com"],
         "interpretation": "Hotjar behavior-analytics infrastructure appears present.",
     },
-    {
-        "id": "mixpanel", "name": "Mixpanel", "category": "analytics",
-        "rules": [r"cdn\.mxpnl\.com", r"mixpanel\.com/track", r"\bmixpanel\s*\.\s*init"],
-        "interpretation": "Mixpanel analytics infrastructure appears present.",
-    },
-    {
-        "id": "amplitude", "name": "Amplitude", "category": "analytics",
-        "rules": [r"amplitude\.com/analytics", r"cdn\.amplitude\.com", r"\bamplitude\s*\.\s*init"],
-        "interpretation": "Amplitude analytics infrastructure appears present.",
-    },
-    {
-        "id": "segment", "name": "Segment", "category": "customer_data",
-        "rules": [r"cdn\.segment\.com", r"api\.segment\.io", r"\banalytics\s*\.\s*load"],
-        "interpretation": "Segment customer-data collection infrastructure appears present.",
-    },
+
+
+
     {
         "id": "hubspot", "name": "HubSpot", "category": "crm_marketing",
         "rules": [r"js\.hs-scripts\.com", r"hsforms\.com", r"hubspot\.com"],
@@ -209,7 +193,11 @@ def _detect(html: str, parser: _HTMLSignals) -> list[Detection]:
         if not matches:
             continue
         confidence = "high" if len(matches) >= 2 else "medium"
-        evidence = [f"Matched fingerprint: {rule}" for rule in matches]
+        evidence = []
+        for rule in matches:
+            match = re.search(rule, signals, re.IGNORECASE)
+            snippet = match.group(0)[:160] if match else rule
+            evidence.append(f"Matched source text: {snippet!r}; signature: {rule}")
         detections.append(Detection(
             technology_id=str(signature["id"]),
             name=str(signature["name"]),
