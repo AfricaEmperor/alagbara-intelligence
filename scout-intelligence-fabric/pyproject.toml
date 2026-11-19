@@ -12,6 +12,7 @@ dependencies = []
 
 [project.scripts]
 scout-acquire = "scout_fabric.cli:main"
+scout-track = "scout_fabric.track_cli:main"
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "ruff>=0.5"]
