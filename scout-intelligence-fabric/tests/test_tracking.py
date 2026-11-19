@@ -1,4 +1,4 @@
-from scout_fabric.tracking import _HTMLSignals, _detect, render_markdown
+from scout_fabric.tracking import _HTMLSignals, _detect, _validate_public_target, render_markdown
 
 
 def test_detects_meta_pixel_from_multiple_fingerprints():
@@ -8,7 +8,7 @@ def test_detects_meta_pixel_from_multiple_fingerprints():
     """
     parser = _HTMLSignals()
     parser.feed(html)
-    found = _detect(html, "https://example.org", parser)
+    found = _detect(html, parser)
     assert len(found) == 1
     assert found[0].technology_id == "meta_pixel"
     assert found[0].confidence == "high"
@@ -49,3 +49,4 @@ def test_markdown_report_has_limitations_and_unknowns():
     assert "Unknowns" in rendered
     assert "Static HTML only" in rendered
     assert "No supported signatures" in rendered
+\n\ndef test_private_ip_target_is_rejected():\n    try:\n        _validate_public_target("http://127.0.0.1")\n    except ValueError as exc:\n        assert "non-public" in str(exc)\n    else:\n        raise AssertionError("private target should be blocked")\n
