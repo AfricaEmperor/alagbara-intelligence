@@ -14,11 +14,11 @@ def test_detects_meta_pixel_from_multiple_fingerprints():
     assert found[0].confidence == "high"
 
 
-def test_detects_gtm_single_fingerprint_as_medium_confidence():
+def test_detects_google_tag_manager():
     html = '<script src="https://www.googletagmanager.com/gtm.js?id=GTM-ABC123"></script>'
     parser = _HTMLSignals()
     parser.feed(html)
-    found = _detect(html, "https://example.org", parser)
+    found = _detect(html, parser)
     assert any(item.technology_id == "google_tag_manager" for item in found)
 
 
@@ -26,7 +26,7 @@ def test_script_src_and_inline_script_are_inspected():
     html = '<script src="https://analytics.tiktok.com/i18n/pixel/events.js"></script><script>ttq.load("x")</script>'
     parser = _HTMLSignals()
     parser.feed(html)
-    found = _detect(html, "https://example.org", parser)
+    found = _detect(html, parser)
     assert any(item.technology_id == "tiktok_pixel" for item in found)
 
 
@@ -49,4 +49,12 @@ def test_markdown_report_has_limitations_and_unknowns():
     assert "Unknowns" in rendered
     assert "Static HTML only" in rendered
     assert "No supported signatures" in rendered
-\n\ndef test_private_ip_target_is_rejected():\n    try:\n        _validate_public_target("http://127.0.0.1")\n    except ValueError as exc:\n        assert "non-public" in str(exc)\n    else:\n        raise AssertionError("private target should be blocked")\n
+
+
+def test_private_ip_target_is_rejected():
+    try:
+        _validate_public_target("http://127.0.0.1")
+    except ValueError as exc:
+        assert "non-public" in str(exc)
+    else:
+        raise AssertionError("private target should be blocked")
