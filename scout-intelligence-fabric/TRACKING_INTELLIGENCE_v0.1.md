@@ -16,7 +16,7 @@ The command performs one explicit scan. It emits JSON and Markdown files when re
 
 ## Scope
 
-Initial fingerprints cover Meta Pixel, Google Tag Manager, Google Analytics 4, Google Ads conversion, TikTok Pixel, LinkedIn Insight Tag, Snap Pixel, Pinterest Tag, Microsoft Clarity, Hotjar, Mixpanel, Amplitude, Segment, and HubSpot.
+Initial fingerprints cover Meta Pixel, Google Tag Manager, Google Analytics 4, Google Ads conversion, TikTok Pixel, LinkedIn Insight Tag, Snap Pixel, Microsoft Clarity, Hotjar, and HubSpot.
 
 Evidence is based on signatures in the returned HTML, script sources, and inline scripts. Multiple independent matched signatures raise the detector confidence from medium to high. Confidence describes detection evidence only; it is not a probability that campaigns are active.
 
