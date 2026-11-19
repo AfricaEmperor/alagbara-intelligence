@@ -18,7 +18,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urljoin, urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
-from .normalize import canonicalize_url, normalize_whitespace
+from .normalize import canonicalize_url
 
 VERSION = "0.1.0"
 MAX_BYTES = 1_000_000
@@ -201,7 +201,7 @@ def _fetch_public_html(url: str) -> tuple[str, bytes, str]:
     raise RuntimeError("Redirect limit exceeded")
 
 
-def _detect(html: str, base_url: str, parser: _HTMLSignals) -> list[Detection]:
+def _detect(html: str, parser: _HTMLSignals) -> list[Detection]:
     signals = "\n".join([html, *parser.script_srcs, *parser.inline_script_parts, *[f"{k}={v}" for k, v in parser.meta]])
     detections: list[Detection] = []
     for signature in SIGNATURES:
@@ -228,7 +228,7 @@ def scan_tracking(url: str) -> dict[str, object]:
     parser = _HTMLSignals()
     parser.feed(html)
     detected_at = datetime.now(timezone.utc).isoformat()
-    detections = _detect(html, final_url, parser)
+    detections = _detect(html, parser)
     digest = hashlib.sha256(payload).hexdigest()
     observations = []
     for detection in detections:
