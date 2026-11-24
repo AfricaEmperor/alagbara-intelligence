@@ -1,0 +1,7 @@
+{
+  "signal_id": "lagos-signal-001",
+  "source_url": "https://example.org/public-event",
+  "observed_at": "2026-11-24T10:00:00+01:00",
+  "event_title": "Example Lagos Experience",
+  "venue_name": "Example Venue"
+}
