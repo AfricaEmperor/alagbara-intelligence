@@ -1,4 +1,4 @@
-from ana_engine.proof001 import build_proof
+from ana_engine.proof001 import build_proof, capture_source
 
 
 def sample():
@@ -14,7 +14,7 @@ def sample():
 def test_signal_to_outcome_path_and_provenance():
     result = build_proof(sample(), action_authorized=True, outcome="qualification_task_created")
     assert result["proof_id"] == "ALAGBARA-PROOF-001"
-    assert result["provenance"]["verification"] == "NOT_FETCH_VERIFIED"
+    assert result["provenance"]["verification"] == "NOT_CAPTURED"
     assert result["graph"]["relationships"][0]["evidence"] == "lagos-signal-001"
     assert result["opportunity"]["rationale"]
     assert result["opportunity"]["next_action"]
@@ -49,3 +49,37 @@ def test_missing_required_signal_fields():
         assert "venue_name" in str(exc)
     else:
         raise AssertionError("missing required field must fail")
+
+
+def test_capture_source_persists_hashed_evidence(tmp_path):
+    import hashlib
+    from unittest.mock import patch
+    from ana_engine import proof001
+
+    body = b"<html>proof001 test source</html>"
+
+    class FakeResponse:
+        headers = {"Content-Type": "text/html; charset=utf-8"}
+        def read(self, limit):
+            return body
+        def geturl(self):
+            return "https://example.org/public-event"
+
+    with patch.object(proof001, "urlopen", return_value=FakeResponse()):
+        captured = capture_source(sample(), tmp_path / "evidence-store")
+
+    assert captured["captured"] is True
+    assert captured["inserted"] is True
+    assert captured["sha256"] == hashlib.sha256(body).hexdigest()
+    assert captured["evidence"]["content_hash"] == captured["sha256"]
+    assert captured["evidence"]["collection_method"] == "bounded_https_fetch"
+    assert captured["evidence"]["source_url"] == sample()["source_url"]
+
+
+def test_captured_evidence_changes_provenance_state():
+    captured = {"captured": True, "sha256": "a" * 64,
+                "evidence": {"observation_id": "obs-test"}}
+    result = build_proof(sample(), captured_evidence=captured)
+    assert result["provenance"]["verification"] == "CAPTURED"
+    assert result["provenance"]["source"]["evidence_id"] == "obs-test"
+    assert result["graph"]["relationships"][0]["evidence"] == "obs-test"
